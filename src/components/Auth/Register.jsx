@@ -47,9 +47,20 @@ export default function Register({ onNavigate, onRegisterSuccess }) {
       const confirmationCode = code.join('');
       await confirmSignUp({ username: email, confirmationCode });
       
-      // En lugar de hacer auto-signIn (lo cual corrompe el estado MFA si es requerido), 
-      // regresamos al login limpio para que inicie sesión y configure su TOTP tranquilamente.
-      onNavigate();
+      // Intentamos hacer auto-login ya que ahora el MFA es opcional
+      try {
+        const { isSignedIn } = await signIn({ username: email, password });
+        if (!isSignedIn) {
+          // Si por alguna razón pide un reto (MFA u otro), 
+          // lo mandamos al Login para que esa pantalla maneje el flujo complejo.
+          onNavigate();
+        }
+        // Si isSignedIn es true, el Hub en App.jsx detectará el evento 'signedIn' 
+        // y lo enviará automáticamente al Dashboard.
+      } catch {
+        // Si el auto-login falla, también lo mandamos al Login por precaución.
+        onNavigate();
+      }
       
     } catch (err) {
       setError(err.message || 'Código inválido');
