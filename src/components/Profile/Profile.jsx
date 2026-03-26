@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, ShieldOff, QrCode, Loader2, ArrowLeft, CheckCircle2 } from 'lucide-react';
-import { setUpTOTP, verifyTOTPSetup, updateMFAPreference, fetchMFAPreference } from 'aws-amplify/auth';
+import { ShieldCheck, ShieldOff, QrCode, Loader2, ArrowLeft, CheckCircle2, MonitorSmartphone, Trash2, BookmarkPlus } from 'lucide-react';
+import { setUpTOTP, verifyTOTPSetup, updateMFAPreference, fetchMFAPreference, fetchDevices, rememberDevice, forgetDevice } from 'aws-amplify/auth';
 import { QRCodeSVG } from 'qrcode.react';
 
 export default function Profile({ onBack }) {
@@ -15,19 +15,31 @@ export default function Profile({ onBack }) {
   const [qrUri, setQrUri] = useState('');
   const [verifyCode, setVerifyCode] = useState(['', '', '', '', '', '']);
 
+  // Devices state
+  const [devices, setDevices] = useState([]);
+  const [devicesLoading, setDevicesLoading] = useState(true);
+
   useEffect(() => {
-    checkMFAStatus();
+    loadProfileData();
   }, []);
 
-  const checkMFAStatus = async () => {
+  const loadProfileData = async () => {
+    setLoading(true);
+    setDevicesLoading(true);
     try {
+      // Load MFA Status
       const mfaPreference = await fetchMFAPreference();
       const isEnabled = mfaPreference?.preferred === 'TOTP' || mfaPreference?.enabled?.includes('TOTP');
       setMfaEnabled(!!isEnabled);
+
+      // Load Devices
+      const userDevices = await fetchDevices();
+      setDevices(userDevices);
     } catch (err) {
-      console.error('Error checking MFA status:', err);
+      console.error('Error loading profile data:', err);
     } finally {
       setLoading(false);
+      setDevicesLoading(false);
     }
   };
 
@@ -80,6 +92,45 @@ export default function Profile({ onBack }) {
     }
   };
 
+  const handleRememberCurrentDevice = async () => {
+    setActionLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      await rememberDevice();
+      setSuccess('Dispositivo actual recordado exitosamente. No se te pedirá MFA por un tiempo en este equipo.');
+      // Refresh list
+      const userDevices = await fetchDevices();
+      setDevices(userDevices);
+    } catch (err) {
+      setError('Error recordando dispositivo: ' + err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleForgetDevice = async (device = null) => {
+    setActionLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      if (device) {
+        await forgetDevice({ device });
+        setSuccess('Dispositivo desvinculado exitosamente.');
+      } else {
+        await forgetDevice();
+        setSuccess('El dispositivo actual ha sido olvidado.');
+      }
+      // Refresh list
+      const userDevices = await fetchDevices();
+      setDevices(userDevices);
+    } catch (err) {
+      setError('Error olvidando dispositivo: ' + err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleCodeChange = (index, value) => {
     if (value.length > 1) value = value.slice(-1);
     const newCode = [...verifyCode];
@@ -91,7 +142,7 @@ export default function Profile({ onBack }) {
     }
   };
 
-  if (loading) {
+  if (loading && !devices.length) {
     return (
       <div className="w-full max-w-2xl flex justify-center items-center py-20">
         <Loader2 className="animate-spin h-8 w-8 text-blue-500" />
@@ -100,7 +151,7 @@ export default function Profile({ onBack }) {
   }
 
   return (
-    <div className="w-full max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="w-full max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <button
@@ -113,7 +164,7 @@ export default function Profile({ onBack }) {
           <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-blue-400 dark:to-indigo-300">
             Seguridad de la Cuenta
           </h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">Administra la autenticación de dos factores (MFA)</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Administra MFA y sesiones activas</p>
         </div>
       </div>
 
@@ -131,7 +182,7 @@ export default function Profile({ onBack }) {
       )}
 
       {/* MFA Status Card */}
-      <div className="bg-white/10 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-3xl p-6 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]">
+      <div className="bg-white/10 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-3xl p-6 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] mb-6">
         
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
@@ -145,7 +196,7 @@ export default function Profile({ onBack }) {
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {mfaEnabled 
                   ? 'MFA activado — Tu cuenta está protegida con verificación en 2 pasos'
-                  : 'MFA desactivado — Activa la verificación en 2 pasos para mayor seguridad'}
+                  : 'MFA opcional — Activa la verificación en 2 pasos para mayor seguridad'}
               </p>
             </div>
           </div>
@@ -240,6 +291,72 @@ export default function Profile({ onBack }) {
             )}
           </div>
         )}
+      </div>
+
+      {/* Device Tracking Card */}
+      <div className="bg-white/10 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-3xl p-6 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl text-indigo-600 dark:text-indigo-400">
+            <MonitorSmartphone className="w-7 h-7" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Dispositivos Vinculados
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Gestiones las sesiones activas asociadas a tu cuenta.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {devicesLoading ? (
+            <div className="flex justify-center py-8">
+               <Loader2 className="animate-spin h-6 w-6 text-gray-400" />
+            </div>
+          ) : devices.length > 0 ? (
+            devices.map((device, idx) => (
+              <div key={device.id || idx} className="flex flex-wrap sm:flex-nowrap justify-between items-center p-4 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-2xl gap-4">
+                <div>
+                  <h4 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                    Dispositivo {device.attributes?.device_name || `(ID: ${device.id.substring(0, 8)}...)`}
+                  </h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Último acceso: {device.lastAuthenticatedDate ? new Date(device.lastAuthenticatedDate).toLocaleString() : 'N/A'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleForgetDevice(device)}
+                  disabled={actionLoading}
+                  className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg flex items-center gap-2 transition-colors border border-red-200 dark:border-red-900/50"
+                  title="Cerrar sesión en este dispositivo"
+                >
+                  <Trash2 className="w-4 h-4" /> Desvincular
+                </button>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Cognito no tiene registrado ningún equipo confiable.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-gray-200 dark:border-gray-800 pt-6 mt-6 flex justify-between items-center flex-wrap gap-4">
+          <p className="text-xs text-gray-500 dark:text-gray-400 w-full sm:w-auto flex-1">
+            Si confías en este navegador, guárdalo y no volverá a pedir MFA temporalmente.
+          </p>
+          <button
+            onClick={handleRememberCurrentDevice}
+            disabled={actionLoading}
+            className="w-full sm:w-auto px-5 py-2.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.98] text-sm"
+          >
+            <BookmarkPlus className="w-4 h-4" />
+            Vincular equipo actual
+          </button>
+        </div>
       </div>
     </div>
   );
