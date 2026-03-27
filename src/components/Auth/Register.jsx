@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Lock, User, ArrowRight, ShieldCheck, Loader2 } from 'lucide-react';
 import { signUp, confirmSignUp, signIn } from 'aws-amplify/auth';
+import CodeInputGroup from './CodeInputGroup';
 
 export default function Register({ onNavigate }) {
   const [step, setStep] = useState('register'); // register or confirm
@@ -69,19 +70,6 @@ export default function Register({ onNavigate }) {
     }
   };
 
-  const handleCodeChange = (index, value) => {
-    if (value.length > 1) value = value.slice(-1); // Only allow one char
-    const newCode = [...code];
-    newCode[index] = value;
-    setCode(newCode);
-
-    // Auto focus next input
-    if (value !== '' && index < 5) {
-      const nextInput = document.getElementById(`code-${index + 1}`);
-      if (nextInput) nextInput.focus();
-    }
-  };
-
   if (step === 'confirm') {
     return (
       <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
@@ -103,19 +91,13 @@ export default function Register({ onNavigate }) {
           )}
           
           <form className="space-y-4" onSubmit={handleConfirm}>
-            <div className="flex gap-2 justify-center">
-              {code.map((digit, i) => (
-                <input 
-                  key={i}
-                  id={`code-${i}`}
-                  type="text" 
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleCodeChange(i, e.target.value)}
-                  className="w-12 h-14 text-center text-xl font-bold bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
-                />
-              ))}
-            </div>
+            <CodeInputGroup
+              value={code}
+              onChange={setCode}
+              length={6}
+              idPrefix="code"
+              inputClassName="w-12 h-14 text-center text-xl font-bold bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
+            />
 
             <button 
               disabled={loading || code.some(c => c === '')}

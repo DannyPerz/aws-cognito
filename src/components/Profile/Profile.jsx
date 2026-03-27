@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, ShieldOff, QrCode, Loader2, ArrowLeft, CheckCircle2, MonitorSmartphone, Trash2, AlertTriangle } from 'lucide-react';
 import { setUpTOTP, verifyTOTPSetup, updateMFAPreference, fetchMFAPreference, fetchDevices, forgetDevice, signOut } from 'aws-amplify/auth';
 import { QRCodeSVG } from 'qrcode.react';
+import CodeInputGroup from '../Auth/CodeInputGroup';
 
 export default function Profile({ onBack, isGoogleUser = false }) {
   const [mfaEnabled, setMfaEnabled] = useState(false);
@@ -143,17 +144,6 @@ export default function Profile({ onBack, isGoogleUser = false }) {
     }
   };
 
-  const handleCodeChange = (index, value) => {
-    if (value.length > 1) value = value.slice(-1);
-    const newCode = [...verifyCode];
-    newCode[index] = value;
-    setVerifyCode(newCode);
-    if (value !== '' && index < 5) {
-      const nextInput = document.getElementById(`profile-mfa-${index + 1}`);
-      if (nextInput) nextInput.focus();
-    }
-  };
-
   if (loading && !devices.length) {
     return (
       <div className="w-full max-w-2xl flex justify-center items-center py-20">
@@ -247,19 +237,13 @@ export default function Profile({ onBack, isGoogleUser = false }) {
               )}
 
               <form onSubmit={handleVerifyTOTP} className="space-y-4">
-                <div className="flex gap-2 justify-center">
-                  {verifyCode.map((digit, i) => (
-                    <input
-                      key={i}
-                      id={`profile-mfa-${i}`}
-                      type="text"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handleCodeChange(i, e.target.value)}
-                      className="w-12 h-14 text-center text-xl font-bold bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
-                    />
-                  ))}
-                </div>
+                <CodeInputGroup
+                  value={verifyCode}
+                  onChange={setVerifyCode}
+                  length={6}
+                  idPrefix="profile-mfa"
+                  inputClassName="w-12 h-14 text-center text-xl font-bold bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
+                />
                 <div className="flex gap-3 justify-center mt-6">
                   <button
                     type="button"

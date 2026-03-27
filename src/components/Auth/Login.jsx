@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Mail, Lock, ArrowRight, Loader2, ShieldCheck, QrCode } from 'lucide-react';
 import { signIn, signInWithRedirect, confirmSignIn, rememberDevice } from 'aws-amplify/auth';
 import { QRCodeSVG } from 'qrcode.react';
+import CodeInputGroup from './CodeInputGroup';
 
 export default function Login({ onNavigate, onLoginSuccess }) {
   const [step, setStep] = useState('login'); // 'login' | 'setup-totp' | 'confirm-totp'
@@ -188,47 +189,6 @@ export default function Login({ onNavigate, onLoginSuccess }) {
     }
   };
 
-  const handleCodeChange = (index, value) => {
-    const codeLen = step === 'confirm-email-otp' ? 8 : 6;
-    if (value.length > 1) value = value.slice(-1);
-
-    const newCode = [...mfaCode];
-    newCode[index] = value;
-    setMfaCode(newCode);
-
-    if (value !== '' && index < codeLen - 1) {
-      const nextInput = document.getElementById(`mfa-${index + 1}`);
-      if (nextInput) nextInput.focus();
-    }
-  };
-
-  const handleKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !mfaCode[index] && index > 0) {
-      const prevInput = document.getElementById(`mfa-${index - 1}`);
-      if (prevInput) prevInput.focus();
-    }
-  };
-
-  const handlePaste = (e) => {
-    e.preventDefault();
-    const codeLen = step === 'confirm-email-otp' ? 8 : 6;
-    const pastedData = e.clipboardData.getData('text').replace(/[^a-zA-Z0-9]/g, '');
-    if (!pastedData) return;
-    
-    const pastedArray = pastedData.slice(0, codeLen).split('');
-    const newCode = [...mfaCode];
-    
-    let lastFilledIndex = 0;
-    for (let i = 0; i < pastedArray.length; i++) {
-      newCode[i] = pastedArray[i];
-      lastFilledIndex = i;
-    }
-    
-    setMfaCode(newCode);
-    const nextInput = document.getElementById(`mfa-${lastFilledIndex < codeLen - 1 ? lastFilledIndex + 1 : codeLen - 1}`);
-    if (nextInput) nextInput.focus();
-  };
-
   // Vistas secundarias
   if (step === 'setup-totp' || step === 'confirm-totp' || step === 'confirm-email-otp') {
     return (
@@ -263,23 +223,15 @@ export default function Login({ onNavigate, onLoginSuccess }) {
           )}
           
           <form className="space-y-4" onSubmit={handleConfirmMFA}>
-            <div className="flex gap-2 justify-center">
-              {mfaCode.slice(0, step === 'confirm-email-otp' ? 8 : 6).map((digit, i) => (
-                <input 
-                  key={i}
-                  id={`mfa-${i}`}
-                  type="text" 
-                  maxLength={step === 'confirm-email-otp' ? 8 : 6}
-                  value={digit}
-                  onChange={(e) => handleCodeChange(i, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(i, e)}
-                  onPaste={handlePaste}
-                  className={`text-center font-bold bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-gray-700/50 rounded-xl focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-500/30 outline-none transition-all ${
-                    step === 'confirm-email-otp' ? 'w-10 h-12 text-lg' : 'w-12 h-14 text-xl'
-                  }`}
-                />
-              ))}
-            </div>
+            <CodeInputGroup
+              value={mfaCode}
+              onChange={setMfaCode}
+              length={step === 'confirm-email-otp' ? 8 : 6}
+              idPrefix="mfa"
+              inputClassName={`text-center font-bold bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-gray-700/50 rounded-xl focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-500/30 outline-none transition-all ${
+                step === 'confirm-email-otp' ? 'w-10 h-12 text-lg' : 'w-12 h-14 text-xl'
+              }`}
+            />
 
             <button 
               disabled={loading || mfaCode.slice(0, step === 'confirm-email-otp' ? 8 : 6).some(c => c === '')}
