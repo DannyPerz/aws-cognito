@@ -137,10 +137,21 @@ export default function Profile({ onBack }) {
     }
     setActionLoading(true);
     try {
-      // global: true invalida los Refresh Tokens emitidos globalmente para este usuario.
+      // 1. Opcional pero recomendado: Desvincular explícitamente este dispositivo 
+      // para que AWS borre su huella de confianza.
+      try {
+        await forgetDevice();
+      } catch (err) {
+        console.warn('No se pudo olvidar el dispositivo local:', err);
+      }
+
+      // 2. Limpiamos cualquier rastro huérfano del LocalStorage (como los deviceGroupKey)
+      // que Amplify a veces deja por defecto para futuros logins.
+      localStorage.clear();
+
+      // 3. global: true invalida los Refresh Tokens emitidos globalmente para este usuario.
       await signOut({ global: true });
-      // Al ser exitoso, el User Auth state machine o el App.jsx (Hub listener) interceptarán la salida 
-      // y nos redirigirán al Login automáticamente. No hay que hacer nada extra aquí.
+      
     } catch (err) {
       setError('Error al revocar todas las sesiones: ' + err.message);
       setActionLoading(false);
