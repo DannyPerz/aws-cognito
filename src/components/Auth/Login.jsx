@@ -8,6 +8,7 @@ import AuthPanel from './ui/AuthPanel';
 import AuthErrorMessage from './ui/AuthErrorMessage';
 import AuthDivider from './ui/AuthDivider';
 import AuthTextField from './ui/AuthTextField';
+import AuthCheckboxField from './ui/AuthCheckboxField';
 import { LOGIN_UI } from './constants/authText';
 import { AUTH_METHODS, LOGIN_STEPS } from './constants/authState';
 
@@ -126,18 +127,12 @@ export default function Login({ onNavigate, onLoginSuccess }) {
               inputClassName="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-gray-700/50 rounded-xl focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-500/30 outline-none transition-all text-gray-900 dark:text-white"
             />
 
-            <div className="flex items-center gap-2 mt-4 ml-1 mb-2">
-              <input 
-                type="checkbox" 
-                id="remember_otp" 
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-                checked={rememberDeviceChecked}
-                onChange={(e) => setRememberDeviceChecked(e.target.checked)}
-              />
-              <label htmlFor="remember_otp" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
-                {LOGIN_UI.rememberOtp}
-              </label>
-            </div>
+            <AuthCheckboxField
+              id="remember_otp"
+              checked={rememberDeviceChecked}
+              onChange={(e) => setRememberDeviceChecked(e.target.checked)}
+              label={LOGIN_UI.rememberOtp}
+            />
 
             <button 
               type="submit"
@@ -183,18 +178,12 @@ export default function Login({ onNavigate, onLoginSuccess }) {
               inputClassName="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
             />
 
-            <div className="flex items-center gap-2 mt-4 ml-1 mb-2">
-              <input 
-                type="checkbox" 
-                id="remember_pwd" 
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-                checked={rememberDeviceChecked}
-                onChange={(e) => setRememberDeviceChecked(e.target.checked)}
-              />
-              <label htmlFor="remember_pwd" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
-                {LOGIN_UI.rememberPassword}
-              </label>
-            </div>
+            <AuthCheckboxField
+              id="remember_pwd"
+              checked={rememberDeviceChecked}
+              onChange={(e) => setRememberDeviceChecked(e.target.checked)}
+              label={LOGIN_UI.rememberPassword}
+            />
 
             <button 
               type="submit"
