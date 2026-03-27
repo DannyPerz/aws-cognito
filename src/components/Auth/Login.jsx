@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Lock, ArrowRight, Loader2, ShieldCheck, QrCode } from 'lucide-react';
-import { signIn, signInWithRedirect, confirmSignIn } from 'aws-amplify/auth';
+import { signIn, signInWithRedirect, confirmSignIn, rememberDevice } from 'aws-amplify/auth';
 import { QRCodeSVG } from 'qrcode.react';
 
 export default function Login({ onNavigate, onLoginSuccess }) {
@@ -11,6 +11,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
   const [mfaCode, setMfaCode] = useState(['', '', '', '', '', '']);
   const [qrUri, setQrUri] = useState('');
   
+  const [rememberDeviceChecked, setRememberDeviceChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -28,6 +29,9 @@ export default function Login({ onNavigate, onLoginSuccess }) {
       });
       
       if (isSignedIn) {
+        if (rememberDeviceChecked) {
+          try { await rememberDevice(); } catch (err) { console.warn('No se pudo recordar disp:', err); }
+        }
         onLoginSuccess();
       } else {
         handleNextStep(nextStep);
@@ -68,6 +72,9 @@ export default function Login({ onNavigate, onLoginSuccess }) {
       const { isSignedIn, nextStep } = await confirmSignIn({ challengeResponse });
       
       if (isSignedIn) {
+        if (rememberDeviceChecked) {
+          try { await rememberDevice(); } catch (err) { console.warn('No se pudo recordar disp:', err); }
+        }
         onLoginSuccess();
       } else {
         setError(`Aún falta un paso: ${nextStep.signInStep}`);
@@ -207,6 +214,19 @@ export default function Login({ onNavigate, onLoginSuccess }) {
                 className="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
               />
             </div>
+          </div>
+
+          <div className="flex items-center gap-2 mt-4 ml-1">
+            <input 
+              type="checkbox" 
+              id="remember" 
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+              checked={rememberDeviceChecked}
+              onChange={(e) => setRememberDeviceChecked(e.target.checked)}
+            />
+            <label htmlFor="remember" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+              Recordar este equipo (No pedirá MFA la próxima vez)
+            </label>
           </div>
 
           <button 

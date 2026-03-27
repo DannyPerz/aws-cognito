@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, ShieldOff, QrCode, Loader2, ArrowLeft, CheckCircle2, MonitorSmartphone, Trash2, BookmarkPlus, AlertTriangle } from 'lucide-react';
-import { setUpTOTP, verifyTOTPSetup, updateMFAPreference, fetchMFAPreference, fetchDevices, rememberDevice, forgetDevice, signOut } from 'aws-amplify/auth';
+import { ShieldCheck, ShieldOff, QrCode, Loader2, ArrowLeft, CheckCircle2, MonitorSmartphone, Trash2, AlertTriangle } from 'lucide-react';
+import { setUpTOTP, verifyTOTPSetup, updateMFAPreference, fetchMFAPreference, fetchDevices, forgetDevice, signOut } from 'aws-amplify/auth';
 import { QRCodeSVG } from 'qrcode.react';
 
 export default function Profile({ onBack }) {
@@ -92,22 +92,7 @@ export default function Profile({ onBack }) {
     }
   };
 
-  const handleRememberCurrentDevice = async () => {
-    setActionLoading(true);
-    setError('');
-    setSuccess('');
-    try {
-      await rememberDevice();
-      setSuccess('Dispositivo actual recordado exitosamente. No se te pedirá MFA por un tiempo en este equipo.');
-      // Refresh list
-      const userDevices = await fetchDevices();
-      setDevices(userDevices);
-    } catch (err) {
-      setError('Error recordando dispositivo: ' + err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
+
 
   const handleForgetDevice = async (device = null) => {
     setActionLoading(true);
@@ -371,19 +356,6 @@ export default function Profile({ onBack }) {
           )}
         </div>
 
-        <div className="border-t border-gray-200 dark:border-gray-800 pt-6 mt-6 flex justify-between items-center flex-wrap gap-4">
-          <p className="text-xs text-gray-500 dark:text-gray-400 w-full sm:w-auto flex-1">
-            Si confías en este navegador, guárdalo y no volverá a pedir MFA temporalmente.
-          </p>
-          <button
-            onClick={handleRememberCurrentDevice}
-            disabled={actionLoading}
-            className="w-full sm:w-auto px-5 py-2.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.98] text-sm"
-          >
-            <BookmarkPlus className="w-4 h-4" />
-            Vincular equipo actual
-          </button>
-        </div>
       </div>
 
       {/* Danger Zone */}
