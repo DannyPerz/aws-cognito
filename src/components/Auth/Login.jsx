@@ -19,7 +19,13 @@ export default function Login({ onNavigate, onLoginSuccess }) {
     setLoading(true);
     setError('');
     try {
-      const { isSignedIn, nextStep } = await signIn({ username: email, password });
+      const { isSignedIn, nextStep } = await signIn({
+        username: email,
+        password: password,
+        options: {
+          authFlowType: 'USER_SRP_AUTH'
+        }
+      });
       
       if (isSignedIn) {
         onLoginSuccess();

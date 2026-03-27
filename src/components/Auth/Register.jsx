@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Mail, Lock, User, ArrowRight, ShieldCheck, Loader2 } from 'lucide-react';
 import { signUp, confirmSignUp, signIn } from 'aws-amplify/auth';
 
-export default function Register({ onNavigate, onRegisterSuccess }) {
+export default function Register({ onNavigate }) {
   const [step, setStep] = useState('register'); // register or confirm
   
   // Register state
