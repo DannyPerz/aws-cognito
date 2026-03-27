@@ -1,148 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { ShieldCheck, ShieldOff, QrCode, Loader2, ArrowLeft, CheckCircle2, MonitorSmartphone, Trash2, AlertTriangle } from 'lucide-react';
-import { setUpTOTP, verifyTOTPSetup, updateMFAPreference, fetchMFAPreference, fetchDevices, forgetDevice, signOut } from 'aws-amplify/auth';
 import { QRCodeSVG } from 'qrcode.react';
 import CodeInputGroup from '../Auth/CodeInputGroup';
+import useProfileSecurity from '../../hooks/useProfileSecurity';
 
 export default function Profile({ onBack, isGoogleUser = false }) {
-  const [mfaEnabled, setMfaEnabled] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  // Setup flow
-  const [setupStep, setSetupStep] = useState('idle'); // 'idle' | 'qr' | 'verify'
-  const [qrUri, setQrUri] = useState('');
-  const [verifyCode, setVerifyCode] = useState(['', '', '', '', '', '']);
-
-  // Devices state
-  const [devices, setDevices] = useState([]);
-  const [devicesLoading, setDevicesLoading] = useState(true);
-
-  useEffect(() => {
-    loadProfileData();
-  }, []);
-
-  const loadProfileData = async () => {
-    setLoading(true);
-    setDevicesLoading(true);
-    try {
-      // Load MFA Status
-      const mfaPreference = await fetchMFAPreference();
-      const isEnabled = mfaPreference?.preferred === 'TOTP' || mfaPreference?.enabled?.includes('TOTP');
-      setMfaEnabled(!!isEnabled);
-
-      // Load Devices
-      const userDevices = await fetchDevices();
-      setDevices(userDevices);
-    } catch (err) {
-      console.error('Error loading profile data:', err);
-    } finally {
-      setLoading(false);
-      setDevicesLoading(false);
-    }
-  };
-
-  const handleEnableMFA = async () => {
-    setActionLoading(true);
-    setError('');
-    setSuccess('');
-    try {
-      const totpSetup = await setUpTOTP();
-      const appName = 'MyReactApp';
-      setQrUri(totpSetup.getSetupUri(appName).toString());
-      setSetupStep('qr');
-    } catch (err) {
-      setError('Error iniciando configuración MFA: ' + err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleVerifyTOTP = async (e) => {
-    e.preventDefault();
-    setActionLoading(true);
-    setError('');
-    try {
-      const code = verifyCode.join('');
-      await verifyTOTPSetup({ code });
-      await updateMFAPreference({ totp: 'PREFERRED' });
-      setMfaEnabled(true);
-      setSetupStep('idle');
-      setSuccess('¡MFA habilitado correctamente! Tu cuenta ahora tiene doble protección. 🛡️');
-    } catch (err) {
-      setError('Código inválido: ' + err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleDisableMFA = async () => {
-    setActionLoading(true);
-    setError('');
-    setSuccess('');
-    try {
-      await updateMFAPreference({ totp: 'DISABLED' });
-      setMfaEnabled(false);
-      setSuccess('MFA deshabilitado correctamente.');
-    } catch (err) {
-      setError('Error deshabilitando MFA: ' + err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-
-
-  const handleForgetDevice = async (device = null) => {
-    setActionLoading(true);
-    setError('');
-    setSuccess('');
-    try {
-      if (device) {
-        await forgetDevice({ device });
-        setSuccess('Dispositivo desvinculado exitosamente.');
-      } else {
-        await forgetDevice();
-        setSuccess('El dispositivo actual ha sido olvidado.');
-      }
-      // Refresh list
-      const userDevices = await fetchDevices();
-      setDevices(userDevices);
-    } catch (err) {
-      setError('Error olvidando dispositivo: ' + err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleGlobalSignOut = async () => {
-    if (!window.confirm('¿Estás seguro que deseas cerrar sesión en TODOS tus dispositivos? Esto te sacará inmediatamente de esta computadora también.')) {
-      return;
-    }
-    setActionLoading(true);
-    try {
-      // 1. Opcional pero recomendado: Desvincular explícitamente este dispositivo 
-      // para que AWS borre su huella de confianza.
-      try {
-        await forgetDevice();
-      } catch (err) {
-        console.warn('No se pudo olvidar el dispositivo local:', err);
-      }
-
-      // 2. Limpiamos cualquier rastro huérfano del LocalStorage (como los deviceGroupKey)
-      // que Amplify a veces deja por defecto para futuros logins.
-      localStorage.clear();
-
-      // 3. global: true invalida los Refresh Tokens emitidos globalmente para este usuario.
-      await signOut({ global: true });
-      
-    } catch (err) {
-      setError('Error al revocar todas las sesiones: ' + err.message);
-      setActionLoading(false);
-    }
-  };
+  const {
+    PROFILE_SETUP_STEPS,
+    mfaEnabled,
+    loading,
+    actionLoading,
+    error,
+    success,
+    setupStep,
+    setSetupStep,
+    qrUri,
+    verifyCode,
+    setVerifyCode,
+    devices,
+    devicesLoading,
+    setError,
+    handleEnableMFA,
+    handleVerifyTOTP,
+    handleDisableMFA,
+    handleForgetDevice,
+    handleGlobalSignOut
+  } = useProfileSecurity();
 
   if (loading && !devices.length) {
     return (
@@ -219,7 +102,7 @@ export default function Profile({ onBack, isGoogleUser = false }) {
         )}
 
         {/* Setup QR Step */}
-        {!isGoogleUser && setupStep === 'qr' && (
+        {!isGoogleUser && setupStep === PROFILE_SETUP_STEPS.QR && (
           <div className="border-t border-gray-200 dark:border-gray-800 pt-6 mt-4 animate-in fade-in duration-300">
             <div className="text-center">
               <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -236,7 +119,7 @@ export default function Profile({ onBack, isGoogleUser = false }) {
                 </div>
               )}
 
-              <form onSubmit={handleVerifyTOTP} className="space-y-4">
+              <form onSubmit={(e) => { e.preventDefault(); handleVerifyTOTP(); }} className="space-y-4">
                 <CodeInputGroup
                   value={verifyCode}
                   onChange={setVerifyCode}
@@ -247,7 +130,7 @@ export default function Profile({ onBack, isGoogleUser = false }) {
                 <div className="flex gap-3 justify-center mt-6">
                   <button
                     type="button"
-                    onClick={() => { setSetupStep('idle'); setError(''); }}
+                    onClick={() => { setSetupStep(PROFILE_SETUP_STEPS.IDLE); setError(''); }}
                     className="px-6 py-3 text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white border border-gray-200 dark:border-gray-700 rounded-xl transition-colors"
                   >
                     Cancelar
@@ -266,7 +149,7 @@ export default function Profile({ onBack, isGoogleUser = false }) {
         )}
 
         {/* Action Buttons */}
-        {!isGoogleUser && setupStep === 'idle' && (
+        {!isGoogleUser && setupStep === PROFILE_SETUP_STEPS.IDLE && (
           <div className="border-t border-gray-200 dark:border-gray-800 pt-6 mt-4">
             {mfaEnabled ? (
               <button
