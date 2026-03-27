@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getCurrentUser, signOut } from 'aws-amplify/auth';
+import { getCurrentUser, fetchAuthSession, signOut } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
@@ -11,7 +11,21 @@ export default function App() {
   const [page, setPage] = useState('dashboard'); // 'dashboard' | 'profile'
   const [theme, setTheme] = useState('light');
   const [user, setUser] = useState(null);
+  const [isGoogleUser, setIsGoogleUser] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(true);
+
+  const detectGoogleOrigin = (currentUser, session) => {
+    const username = String(currentUser?.username || '').toLowerCase();
+    const payload = session?.tokens?.idToken?.payload || {};
+    const cognitoUsername = String(payload?.['cognito:username'] || '').toLowerCase();
+    const identityProvider = String(payload?.identities?.[0]?.providerName || payload?.identities?.[0]?.provider || '').toLowerCase();
+
+    return (
+      username.startsWith('google_') ||
+      cognitoUsername.startsWith('google_') ||
+      identityProvider.includes('google')
+    );
+  };
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -28,9 +42,12 @@ export default function App() {
   const checkUser = async () => {
     try {
       const currentUser = await getCurrentUser();
+      const session = await fetchAuthSession();
       setUser(currentUser);
+      setIsGoogleUser(detectGoogleOrigin(currentUser, session));
     } catch {
       setUser(null);
+      setIsGoogleUser(false);
     } finally {
       setLoadingConfig(false);
     }
@@ -45,6 +62,7 @@ export default function App() {
           break;
         case 'signedOut':
           setUser(null);
+          setIsGoogleUser(false);
           setPage('dashboard');
           break;
       }
@@ -56,6 +74,7 @@ export default function App() {
     try {
       await signOut();
       setUser(null);
+      setIsGoogleUser(false);
       setPage('dashboard');
     } catch (err) {
       console.error('Error signing out: ', err);
@@ -72,7 +91,7 @@ export default function App() {
 
   const renderAuthenticatedContent = () => {
     if (page === 'profile') {
-      return <Profile onBack={() => setPage('dashboard')} />;
+      return <Profile onBack={() => setPage('dashboard')} isGoogleUser={isGoogleUser} />;
     }
 
     return (
@@ -108,6 +127,7 @@ export default function App() {
               <ShieldCheck className="w-5 h-5" />
               Seguridad (MFA)
             </button>
+
             <button 
               onClick={handleSignOut}
               className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.98]"

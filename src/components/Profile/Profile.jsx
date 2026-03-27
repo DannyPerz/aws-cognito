@@ -3,7 +3,7 @@ import { ShieldCheck, ShieldOff, QrCode, Loader2, ArrowLeft, CheckCircle2, Monit
 import { setUpTOTP, verifyTOTPSetup, updateMFAPreference, fetchMFAPreference, fetchDevices, forgetDevice, signOut } from 'aws-amplify/auth';
 import { QRCodeSVG } from 'qrcode.react';
 
-export default function Profile({ onBack }) {
+export default function Profile({ onBack, isGoogleUser = false }) {
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -206,20 +206,30 @@ export default function Profile({ onBack }) {
                 Autenticación TOTP
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {mfaEnabled 
+                {isGoogleUser
+                  ? 'Tu cuenta está protegida por Google. Gestiona tu seguridad desde tu cuenta de Google.'
+                  : mfaEnabled 
                   ? 'MFA activado — Tu cuenta está protegida con verificación en 2 pasos'
                   : 'MFA opcional — Activa la verificación en 2 pasos para mayor seguridad'}
               </p>
             </div>
           </div>
 
-          <span className={`px-3 py-1 text-xs font-semibold rounded-full ${mfaEnabled ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
-            {mfaEnabled ? 'Activo' : 'Inactivo'}
+          <span className={`px-3 py-1 text-xs font-semibold rounded-full ${isGoogleUser ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : mfaEnabled ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
+            {isGoogleUser ? 'Google' : mfaEnabled ? 'Activo' : 'Inactivo'}
           </span>
         </div>
 
+        {isGoogleUser && (
+          <div className="border-t border-gray-200 dark:border-gray-800 pt-6 mt-4">
+            <div className="p-4 bg-blue-50/80 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl text-sm text-blue-700 dark:text-blue-300">
+              Tu cuenta está protegida por Google. Gestiona tu seguridad en tu cuenta de Google.
+            </div>
+          </div>
+        )}
+
         {/* Setup QR Step */}
-        {setupStep === 'qr' && (
+        {!isGoogleUser && setupStep === 'qr' && (
           <div className="border-t border-gray-200 dark:border-gray-800 pt-6 mt-4 animate-in fade-in duration-300">
             <div className="text-center">
               <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -272,7 +282,7 @@ export default function Profile({ onBack }) {
         )}
 
         {/* Action Buttons */}
-        {setupStep === 'idle' && (
+        {!isGoogleUser && setupStep === 'idle' && (
           <div className="border-t border-gray-200 dark:border-gray-800 pt-6 mt-4">
             {mfaEnabled ? (
               <button
