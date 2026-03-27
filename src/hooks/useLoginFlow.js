@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { signIn, confirmSignIn, rememberDevice } from 'aws-amplify/auth';
 import { LOGIN_FLOW_TEXT } from '../components/Auth/constants/authText';
+import {
+  AUTH_METHODS,
+  COGNITO_FACTORS,
+  COGNITO_SIGN_IN_STEPS,
+  LOGIN_STEPS
+} from '../components/Auth/constants/authState';
 
 export default function useLoginFlow({ onLoginSuccess }) {
-  const [step, setStep] = useState('login'); // 'login' | 'setup-totp' | 'confirm-totp'
-  const [activeMethod, setActiveMethod] = useState(null); // 'PASSWORD' | 'EMAIL_OTP'
+  const [step, setStep] = useState(LOGIN_STEPS.LOGIN);
+  const [activeMethod, setActiveMethod] = useState(null);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,35 +39,37 @@ export default function useLoginFlow({ onLoginSuccess }) {
   };
 
   const handleNextStep = async (nextStep, method = activeMethod) => {
-    if (nextStep.signInStep === 'CONTINUE_SIGN_IN_WITH_TOTP_SETUP') {
+    if (nextStep.signInStep === COGNITO_SIGN_IN_STEPS.CONTINUE_TOTP_SETUP) {
       const totpSetupDetails = nextStep.totpSetupDetails;
       const appName = LOGIN_FLOW_TEXT.appName;
       const setupUri = totpSetupDetails.getSetupUri(appName).toString();
       setQrUri(setupUri);
-      setStep('setup-totp');
+      setStep(LOGIN_STEPS.SETUP_TOTP);
       return;
     }
 
-    if (nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_TOTP_CODE') {
-      setStep('confirm-totp');
+    if (nextStep.signInStep === COGNITO_SIGN_IN_STEPS.CONFIRM_TOTP_CODE) {
+      setStep(LOGIN_STEPS.CONFIRM_TOTP);
       return;
     }
 
-    if (nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_OTP_CODE' || nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_EMAIL_CODE') {
-      if (method === 'PASSWORD') {
+    if (nextStep.signInStep === COGNITO_SIGN_IN_STEPS.CONFIRM_OTP_CODE || nextStep.signInStep === COGNITO_SIGN_IN_STEPS.CONFIRM_EMAIL_CODE) {
+      if (method === AUTH_METHODS.PASSWORD) {
         setError(LOGIN_FLOW_TEXT.emailCodeUnexpectedForPassword);
         return;
       }
-      setStep('confirm-email-otp');
+      setStep(LOGIN_STEPS.CONFIRM_EMAIL_OTP);
       return;
     }
 
-    if (nextStep.signInStep === 'CONTINUE_SIGN_IN_WITH_FIRST_FACTOR_SELECTION') {
+    if (nextStep.signInStep === COGNITO_SIGN_IN_STEPS.CONTINUE_FIRST_FACTOR_SELECTION) {
       const available = nextStep.availableFactors || [];
 
       try {
-        if (method === 'PASSWORD') {
-          const passChallenge = available.includes('PASSWORD_SRP') ? 'PASSWORD_SRP' : (available.includes('PASSWORD') ? 'PASSWORD' : null);
+        if (method === AUTH_METHODS.PASSWORD) {
+          const passChallenge = available.includes(COGNITO_FACTORS.PASSWORD_SRP)
+            ? COGNITO_FACTORS.PASSWORD_SRP
+            : (available.includes(COGNITO_FACTORS.PASSWORD) ? COGNITO_FACTORS.PASSWORD : null);
           if (!passChallenge) {
             setError(LOGIN_FLOW_TEXT.missingPasswordFactor);
             return;
@@ -71,13 +79,13 @@ export default function useLoginFlow({ onLoginSuccess }) {
           return;
         }
 
-        if (method === 'EMAIL_OTP') {
-          if (!available.includes('EMAIL_OTP')) {
+        if (method === AUTH_METHODS.EMAIL_OTP) {
+          if (!available.includes(COGNITO_FACTORS.EMAIL_OTP)) {
             setError(LOGIN_FLOW_TEXT.emailOtpDisabled);
-            setStep('login-password');
+            setStep(LOGIN_STEPS.LOGIN_PASSWORD);
             return;
           }
-          const { nextStep: advancedStep } = await confirmSignIn({ challengeResponse: 'EMAIL_OTP' });
+          const { nextStep: advancedStep } = await confirmSignIn({ challengeResponse: COGNITO_FACTORS.EMAIL_OTP });
           await handleNextStep(advancedStep, method);
           return;
         }
@@ -87,9 +95,9 @@ export default function useLoginFlow({ onLoginSuccess }) {
       return;
     }
 
-    if (nextStep.signInStep === 'CONTINUE_SIGN_IN_WITH_MFA_SELECTION') {
+    if (nextStep.signInStep === COGNITO_SIGN_IN_STEPS.CONTINUE_MFA_SELECTION) {
       try {
-        const { nextStep: advancedStep } = await confirmSignIn({ challengeResponse: 'TOTP' });
+        const { nextStep: advancedStep } = await confirmSignIn({ challengeResponse: COGNITO_FACTORS.TOTP });
         await handleNextStep(advancedStep, method);
       } catch (err) {
         setError(LOGIN_FLOW_TEXT.mfaSelectionError(err.message));
@@ -106,7 +114,7 @@ export default function useLoginFlow({ onLoginSuccess }) {
       return;
     }
 
-    if (method === 'PASSWORD' && !password) {
+    if (method === AUTH_METHODS.PASSWORD && !password) {
       setError(LOGIN_FLOW_TEXT.passwordRequired);
       return;
     }
@@ -129,14 +137,14 @@ export default function useLoginFlow({ onLoginSuccess }) {
             username: email,
             options: {
               authFlowType: 'USER_AUTH',
-              preferredChallenge: 'EMAIL_OTP'
+              preferredChallenge: AUTH_METHODS.EMAIL_OTP
             }
           };
 
       const { isSignedIn, nextStep } = await signIn(signInParams);
 
       if (isSignedIn) {
-        if (rememberDeviceChecked && method === 'PASSWORD') {
+        if (rememberDeviceChecked && method === AUTH_METHODS.PASSWORD) {
           try {
             await rememberDevice();
           } catch (err) {
@@ -159,14 +167,14 @@ export default function useLoginFlow({ onLoginSuccess }) {
     setLoading(true);
     setError('');
 
-    const codeLen = step === 'confirm-email-otp' ? 8 : 6;
+    const codeLen = step === LOGIN_STEPS.CONFIRM_EMAIL_OTP ? 8 : 6;
 
     try {
       const challengeResponse = mfaCode.slice(0, codeLen).join('');
       const { isSignedIn, nextStep } = await confirmSignIn({ challengeResponse });
 
       if (isSignedIn) {
-        if (rememberDeviceChecked && activeMethod === 'PASSWORD') {
+        if (rememberDeviceChecked && activeMethod === AUTH_METHODS.PASSWORD) {
           try {
             await rememberDevice();
           } catch (err) {
@@ -181,7 +189,7 @@ export default function useLoginFlow({ onLoginSuccess }) {
       const errMsg = err?.message || LOGIN_FLOW_TEXT.invalidMfaCode;
 
       if (
-        step === 'confirm-email-otp' &&
+        step === LOGIN_STEPS.CONFIRM_EMAIL_OTP &&
         /Device does not exist/i.test(errMsg) &&
         !didRetryEmailOtpWithoutDeviceKey
       ) {

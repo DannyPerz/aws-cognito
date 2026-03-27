@@ -6,9 +6,10 @@ import AuthPanel from './ui/AuthPanel';
 import AuthErrorMessage from './ui/AuthErrorMessage';
 import AuthTextField from './ui/AuthTextField';
 import { REGISTER_UI, REGISTER_ERRORS } from './constants/authText';
+import { REGISTER_STEPS } from './constants/authState';
 
 export default function Register({ onNavigate }) {
-  const [step, setStep] = useState('register'); // register or confirm
+  const [step, setStep] = useState(REGISTER_STEPS.REGISTER);
   
   // Register state
   const [name, setName] = useState('');
@@ -36,7 +37,7 @@ export default function Register({ onNavigate }) {
           }
         }
       });
-      setStep('confirm');
+      setStep(REGISTER_STEPS.CONFIRM);
     } catch (err) {
       setError(err.message || REGISTER_ERRORS.signUpError);
     } finally {
@@ -74,7 +75,7 @@ export default function Register({ onNavigate }) {
     }
   };
 
-  if (step === 'confirm') {
+  if (step === REGISTER_STEPS.CONFIRM) {
     return (
       <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
         <AuthPanel className="bg-white/10 dark:bg-black/40 border-white/20 dark:border-white/10 text-center">

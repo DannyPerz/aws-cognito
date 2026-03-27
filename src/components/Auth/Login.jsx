@@ -9,6 +9,7 @@ import AuthErrorMessage from './ui/AuthErrorMessage';
 import AuthDivider from './ui/AuthDivider';
 import AuthTextField from './ui/AuthTextField';
 import { LOGIN_UI } from './constants/authText';
+import { AUTH_METHODS, LOGIN_STEPS } from './constants/authState';
 
 export default function Login({ onNavigate, onLoginSuccess }) {
   const {
@@ -30,27 +31,27 @@ export default function Login({ onNavigate, onLoginSuccess }) {
   } = useLoginFlow({ onLoginSuccess });
 
   // Vistas secundarias
-  if (step === 'setup-totp' || step === 'confirm-totp' || step === 'confirm-email-otp') {
+  if (step === LOGIN_STEPS.SETUP_TOTP || step === LOGIN_STEPS.CONFIRM_TOTP || step === LOGIN_STEPS.CONFIRM_EMAIL_OTP) {
     return (
       <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
         <AuthPanel className="text-center">
           <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-6">
-            {step === 'setup-totp' ? <QrCode className="w-8 h-8" /> : (step === 'confirm-email-otp' ? <Mail className="w-8 h-8" /> : <ShieldCheck className="w-8 h-8" />)}
+            {step === LOGIN_STEPS.SETUP_TOTP ? <QrCode className="w-8 h-8" /> : (step === LOGIN_STEPS.CONFIRM_EMAIL_OTP ? <Mail className="w-8 h-8" /> : <ShieldCheck className="w-8 h-8" />)}
           </div>
           
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            {step === 'setup-totp' ? LOGIN_UI.setupTotpTitle : (step === 'confirm-email-otp' ? LOGIN_UI.confirmEmailOtpTitle : LOGIN_UI.confirmTotpTitle)}
+            {step === LOGIN_STEPS.SETUP_TOTP ? LOGIN_UI.setupTotpTitle : (step === LOGIN_STEPS.CONFIRM_EMAIL_OTP ? LOGIN_UI.confirmEmailOtpTitle : LOGIN_UI.confirmTotpTitle)}
           </h2>
           
           <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">
-            {step === 'setup-totp' 
+            {step === LOGIN_STEPS.SETUP_TOTP 
               ? LOGIN_UI.setupTotpDescription
-              : (step === 'confirm-email-otp' 
+              : (step === LOGIN_STEPS.CONFIRM_EMAIL_OTP 
                   ? LOGIN_UI.confirmEmailOtpDescription(email)
                   : LOGIN_UI.confirmTotpDescription)}
           </p>
 
-          {step === 'setup-totp' && qrUri && (
+          {step === LOGIN_STEPS.SETUP_TOTP && qrUri && (
             <div className="flex justify-center mb-6 p-4 bg-white rounded-xl mx-auto w-max shadow-sm border border-gray-100">
               <QRCodeSVG value={qrUri} size={150} />
             </div>
@@ -62,30 +63,30 @@ export default function Login({ onNavigate, onLoginSuccess }) {
             <CodeInputGroup
               value={mfaCode}
               onChange={setMfaCode}
-              length={step === 'confirm-email-otp' ? 8 : 6}
+              length={step === LOGIN_STEPS.CONFIRM_EMAIL_OTP ? 8 : 6}
               idPrefix="mfa"
               inputClassName={`text-center font-bold bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-gray-700/50 rounded-xl focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-500/30 outline-none transition-all ${
-                step === 'confirm-email-otp' ? 'w-10 h-12 text-lg' : 'w-12 h-14 text-xl'
+                step === LOGIN_STEPS.CONFIRM_EMAIL_OTP ? 'w-10 h-12 text-lg' : 'w-12 h-14 text-xl'
               }`}
             />
 
             <button 
-              disabled={loading || mfaCode.slice(0, step === 'confirm-email-otp' ? 8 : 6).some(c => c === '')}
+              disabled={loading || mfaCode.slice(0, step === LOGIN_STEPS.CONFIRM_EMAIL_OTP ? 8 : 6).some(c => c === '')}
               className="w-full py-3 mt-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-70 text-white rounded-xl font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             >
               {loading ? <Loader2 className="animate-spin h-5 w-5" /> : LOGIN_UI.verifyAndEnter}
             </button>
             <button 
               type="button"
-              onClick={() => setStep('login')}
+              onClick={() => setStep(LOGIN_STEPS.LOGIN)}
               className="w-full py-2 text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors"
             >
               {LOGIN_UI.cancel}
             </button>
-            {step === 'confirm-email-otp' && (
+            {step === LOGIN_STEPS.CONFIRM_EMAIL_OTP && (
               <button 
                 type="button"
-                onClick={() => setStep('login-password')}
+                onClick={() => setStep(LOGIN_STEPS.LOGIN_PASSWORD)}
                 className="w-full py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline transition-colors"
               >
                 {LOGIN_UI.switchToPassword}
@@ -112,8 +113,8 @@ export default function Login({ onNavigate, onLoginSuccess }) {
 
         <AuthErrorMessage message={error} />
 
-        {step === 'login' && (
-          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignIn('EMAIL_OTP'); }}>
+        {step === LOGIN_STEPS.LOGIN && (
+          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignIn(AUTH_METHODS.EMAIL_OTP); }}>
             <AuthTextField
               label={LOGIN_UI.emailLabel}
               type="email"
@@ -149,7 +150,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
             
             <button 
               type="button"
-              onClick={() => setStep('login-password')}
+              onClick={() => setStep(LOGIN_STEPS.LOGIN_PASSWORD)}
               className="w-full py-3 mt-2 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-600 dark:text-gray-400 rounded-xl font-medium flex items-center justify-center transition-all active:scale-[0.98] text-sm"
             >
               {LOGIN_UI.switchToPassword}
@@ -157,8 +158,8 @@ export default function Login({ onNavigate, onLoginSuccess }) {
           </form>
         )}
 
-        {step === 'login-password' && (
-          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignIn('PASSWORD'); }}>
+        {step === LOGIN_STEPS.LOGIN_PASSWORD && (
+          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignIn(AUTH_METHODS.PASSWORD); }}>
             <AuthTextField
               label={LOGIN_UI.emailLabel}
               type="email"
@@ -206,7 +207,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
 
             <button 
               type="button"
-              onClick={() => setStep('login')}
+              onClick={() => setStep(LOGIN_STEPS.LOGIN)}
               className="w-full py-3 mt-2 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-600 dark:text-gray-400 rounded-xl font-medium flex items-center justify-center transition-all active:scale-[0.98] text-sm"
             >
               {LOGIN_UI.switchToPasswordless}
