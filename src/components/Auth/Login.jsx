@@ -8,25 +8,41 @@ export default function Login({ onNavigate, onLoginSuccess }) {
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [mfaCode, setMfaCode] = useState(['', '', '', '', '', '']);
+  const [mfaCode, setMfaCode] = useState(['', '', '', '', '', '', '', '']);
   const [qrUri, setQrUri] = useState('');
   
   const [rememberDeviceChecked, setRememberDeviceChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSignIn = async (e) => {
-    e.preventDefault();
+  const handleSignIn = async (method) => {
+    // method: 'PASSWORD' | 'EMAIL_OTP'
+    if (!email) {
+      setError('Por favor, ingresa tu correo electrónico primero.');
+      return;
+    }
+    if (method === 'PASSWORD' && !password) {
+      setError('Por favor, ingresa tu contraseña.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
-      const { isSignedIn, nextStep } = await signIn({
+      let signInParams = {
         username: email,
-        password: password,
         options: {
-          authFlowType: 'USER_SRP_AUTH'
+          authFlowType: 'USER_AUTH',
+          preferredChallenge: method === 'EMAIL_OTP' ? 'EMAIL_OTP' : 'PASSWORD'
         }
-      });
+      };
+
+      if (method === 'PASSWORD') {
+        // En Cognito, PASSWORD en USER_AUTH prefiere automáticamente SRP si está disponible.
+        signInParams.password = password;
+      }
+
+      const { isSignedIn, nextStep } = await signIn(signInParams);
       
       if (isSignedIn) {
         if (rememberDeviceChecked) {
@@ -45,7 +61,6 @@ export default function Login({ onNavigate, onLoginSuccess }) {
 
   const handleNextStep = (nextStep) => {
     if (nextStep.signInStep === 'CONTINUE_SIGN_IN_WITH_TOTP_SETUP') {
-      // Los datos del TOTP vienen DENTRO del nextStep, no se necesita llamar a setUpTOTP()
       const totpSetupDetails = nextStep.totpSetupDetails;
       const appName = 'MyReactApp';
       const setupUri = totpSetupDetails.getSetupUri(appName).toString();
@@ -53,13 +68,30 @@ export default function Login({ onNavigate, onLoginSuccess }) {
       setStep('setup-totp');
     } else if (nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_TOTP_CODE') {
       setStep('confirm-totp');
+    } else if (nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_OTP_CODE' || nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_EMAIL_CODE') {
+      setStep('confirm-email-otp');
+    } else if (nextStep.signInStep === 'CONTINUE_SIGN_IN_WITH_FIRST_FACTOR_SELECTION') {
+      // Si el backend no reconoció el preferredChallenge y nos frena aquí, forzamos el avance:
+      const available = nextStep.availableFactors || [];
+      if (available.includes('EMAIL_OTP') && !password) {
+        confirmSignIn({ challengeResponse: 'EMAIL_OTP' })
+          .then(({ nextStep: advancedStep }) => handleNextStep(advancedStep))
+          .catch((err) => setError(`Error seleccionando factor: ${err.message}`));
+      } else if (!password) {
+        setError('Por la alta seguridad de tu cuenta (MFA Activo), el inicio por correo está bloqueado. Por favor, usa tu contraseña.');
+        setStep('login-password');
+      } else {
+        const passChallenge = available.includes('PASSWORD_SRP') ? 'PASSWORD_SRP' : 'PASSWORD';
+        confirmSignIn({ challengeResponse: passChallenge })
+          .then(({ nextStep: advancedStep }) => handleNextStep(advancedStep))
+          .catch((err) => setError(`Error seleccionando factor: ${err.message}`));
+      }
     } else if (nextStep.signInStep === 'CONTINUE_SIGN_IN_WITH_MFA_SELECTION') {
-      // Si Cognito pide seleccionar el tipo de MFA
       confirmSignIn({ challengeResponse: 'TOTP' })
         .then(({ nextStep: advancedStep }) => handleNextStep(advancedStep))
         .catch((err) => setError(`Error seleccionando MFA: ${err.message}`));
     } else {
-      setError(`Reto no soportado en este demo: ${nextStep.signInStep}`);
+      setError(`Reto no validado en UI: ${nextStep.signInStep}`);
     }
   };
 
@@ -67,8 +99,10 @@ export default function Login({ onNavigate, onLoginSuccess }) {
     e.preventDefault();
     setLoading(true);
     setError('');
+    
+    const codeLen = step === 'confirm-email-otp' ? 8 : 6;
     try {
-      const challengeResponse = mfaCode.join('');
+      const challengeResponse = mfaCode.slice(0, codeLen).join('');
       const { isSignedIn, nextStep } = await confirmSignIn({ challengeResponse });
       
       if (isSignedIn) {
@@ -87,34 +121,65 @@ export default function Login({ onNavigate, onLoginSuccess }) {
   };
 
   const handleCodeChange = (index, value) => {
+    const codeLen = step === 'confirm-email-otp' ? 8 : 6;
     if (value.length > 1) value = value.slice(-1);
+
     const newCode = [...mfaCode];
     newCode[index] = value;
     setMfaCode(newCode);
 
-    if (value !== '' && index < 5) {
+    if (value !== '' && index < codeLen - 1) {
       const nextInput = document.getElementById(`mfa-${index + 1}`);
       if (nextInput) nextInput.focus();
     }
   };
 
-  // Vistas de MFA
-  if (step === 'setup-totp' || step === 'confirm-totp') {
+  const handleKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !mfaCode[index] && index > 0) {
+      const prevInput = document.getElementById(`mfa-${index - 1}`);
+      if (prevInput) prevInput.focus();
+    }
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const codeLen = step === 'confirm-email-otp' ? 8 : 6;
+    const pastedData = e.clipboardData.getData('text').replace(/[^a-zA-Z0-9]/g, '');
+    if (!pastedData) return;
+    
+    const pastedArray = pastedData.slice(0, codeLen).split('');
+    const newCode = [...mfaCode];
+    
+    let lastFilledIndex = 0;
+    for (let i = 0; i < pastedArray.length; i++) {
+      newCode[i] = pastedArray[i];
+      lastFilledIndex = i;
+    }
+    
+    setMfaCode(newCode);
+    const nextInput = document.getElementById(`mfa-${lastFilledIndex < codeLen - 1 ? lastFilledIndex + 1 : codeLen - 1}`);
+    if (nextInput) nextInput.focus();
+  };
+
+  // Vistas secundarias
+  if (step === 'setup-totp' || step === 'confirm-totp' || step === 'confirm-email-otp') {
     return (
       <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
-        <div className="bg-white/10 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-3xl p-8 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] text-center">
+        <div className="bg-white dark:bg-gray-900/80 backdrop-blur-xl border border-gray-100 dark:border-gray-800 rounded-3xl p-8 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] text-center">
           <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-6">
-            {step === 'setup-totp' ? <QrCode className="w-8 h-8" /> : <ShieldCheck className="w-8 h-8" />}
+            {step === 'setup-totp' ? <QrCode className="w-8 h-8" /> : (step === 'confirm-email-otp' ? <Mail className="w-8 h-8" /> : <ShieldCheck className="w-8 h-8" />)}
           </div>
           
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            {step === 'setup-totp' ? 'Configura tu MFA' : 'Autenticación en 2 Pasos'}
+            {step === 'setup-totp' ? 'Configura tu MFA' : (step === 'confirm-email-otp' ? 'Revisa tu correo' : 'Autenticación en 2 Pasos')}
           </h2>
           
           <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">
             {step === 'setup-totp' 
               ? 'Escanea este QR con Google Authenticator o Authy, y digita el código de 6 números que se genera.'
-              : 'Ingresa el código de 6 dígitos que aparece en tu aplicación de autenticación dinámica.'}
+              : (step === 'confirm-email-otp' 
+                  ? `Te acabamos de enviar un código temporal a ${email}. Cópialo aquí para ingresar.`
+                  : 'Ingresa el código de 6 dígitos que aparece en tu aplicación de autenticación dinámica.')}
           </p>
 
           {step === 'setup-totp' && qrUri && (
@@ -131,21 +196,25 @@ export default function Login({ onNavigate, onLoginSuccess }) {
           
           <form className="space-y-4" onSubmit={handleConfirmMFA}>
             <div className="flex gap-2 justify-center">
-              {mfaCode.map((digit, i) => (
+              {mfaCode.slice(0, step === 'confirm-email-otp' ? 8 : 6).map((digit, i) => (
                 <input 
                   key={i}
                   id={`mfa-${i}`}
                   type="text" 
-                  maxLength={1}
+                  maxLength={step === 'confirm-email-otp' ? 8 : 6}
                   value={digit}
                   onChange={(e) => handleCodeChange(i, e.target.value)}
-                  className="w-12 h-14 text-center text-xl font-bold bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
+                  onKeyDown={(e) => handleKeyDown(i, e)}
+                  onPaste={handlePaste}
+                  className={`text-center font-bold bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-gray-700/50 rounded-xl focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-500/30 outline-none transition-all ${
+                    step === 'confirm-email-otp' ? 'w-10 h-12 text-lg' : 'w-12 h-14 text-xl'
+                  }`}
                 />
               ))}
             </div>
 
             <button 
-              disabled={loading || mfaCode.some(c => c === '')}
+              disabled={loading || mfaCode.slice(0, step === 'confirm-email-otp' ? 8 : 6).some(c => c === '')}
               className="w-full py-3 mt-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-70 text-white rounded-xl font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             >
               {loading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Verificar e Ingresar'}
@@ -157,6 +226,15 @@ export default function Login({ onNavigate, onLoginSuccess }) {
             >
               Cancelar
             </button>
+            {step === 'confirm-email-otp' && (
+              <button 
+                type="button"
+                onClick={() => setStep('login-password')}
+                className="w-full py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline transition-colors"
+              >
+                Iniciar sesión con contraseña en su lugar
+              </button>
+            )}
           </form>
         </div>
       </div>
@@ -165,7 +243,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
 
   return (
     <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-white/10 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-3xl p-8 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]">
+      <div className="bg-white dark:bg-gray-900/80 backdrop-blur-xl border border-gray-100 dark:border-gray-800 rounded-3xl p-8 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]">
         
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-blue-400 dark:to-indigo-300">
@@ -182,61 +260,121 @@ export default function Login({ onNavigate, onLoginSuccess }) {
           </div>
         )}
 
-        <form className="space-y-4" onSubmit={handleSignIn}>
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 ml-1">Email</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+        {step === 'login' && (
+          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignIn('EMAIL_OTP'); }}>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 ml-1">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="you@email.com"
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-gray-700/50 rounded-xl focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-500/30 outline-none transition-all text-gray-900 dark:text-white"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 mt-4 ml-1 mb-2">
               <input 
-                type="email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="you@example.com"
-                className="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
+                type="checkbox" 
+                id="remember_otp" 
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                checked={rememberDeviceChecked}
+                onChange={(e) => setRememberDeviceChecked(e.target.checked)}
               />
+              <label htmlFor="remember_otp" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                Recordar este equipo (No pedirá códigos a futuro)
+              </label>
             </div>
-          </div>
 
-          <div className="space-y-1">
-            <div className="flex justify-between items-center ml-1">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
-              <a href="#" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Forgot password?</a>
+            <button 
+              type="submit"
+              disabled={loading || !email}
+              className="w-full py-3 mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-70 text-white rounded-xl font-medium flex items-center justify-center gap-2 group transition-all active:scale-[0.98]"
+            >
+              {loading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Continuar'}
+              {!loading && <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />}
+            </button>
+            
+            <button 
+              type="button"
+              onClick={() => setStep('login-password')}
+              className="w-full py-3 mt-2 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-600 dark:text-gray-400 rounded-xl font-medium flex items-center justify-center transition-all active:scale-[0.98] text-sm"
+            >
+              Iniciar sesión con contraseña en su lugar
+            </button>
+          </form>
+        )}
+
+        {step === 'login-password' && (
+          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignIn('PASSWORD'); }}>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 ml-1">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="you@email.com"
+                  className="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
+                />
+              </div>
             </div>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+
+            <div className="space-y-1">
+              <div className="flex justify-between items-center ml-1">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Contraseña</label>
+                <a href="#" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">¿La olvidaste?</a>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 mt-4 ml-1 mb-2">
               <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
+                type="checkbox" 
+                id="remember_pwd" 
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                checked={rememberDeviceChecked}
+                onChange={(e) => setRememberDeviceChecked(e.target.checked)}
               />
+              <label htmlFor="remember_pwd" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                Recordar este equipo (No pedirá MFA a futuro)
+              </label>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 mt-4 ml-1">
-            <input 
-              type="checkbox" 
-              id="remember" 
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-              checked={rememberDeviceChecked}
-              onChange={(e) => setRememberDeviceChecked(e.target.checked)}
-            />
-            <label htmlFor="remember" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
-              Recordar este equipo (No pedirá MFA la próxima vez)
-            </label>
-          </div>
+            <button 
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-70 text-white rounded-xl font-medium flex items-center justify-center gap-2 group transition-all active:scale-[0.98]"
+            >
+              {loading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Ingresar'}
+              {!loading && <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />}
+            </button>
 
-          <button 
-            disabled={loading}
-            className="w-full py-3 mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-70 text-white rounded-xl font-medium flex items-center justify-center gap-2 group transition-all active:scale-[0.98]"
-          >
-            {loading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Sign In'}
-            {!loading && <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />}
-          </button>
-        </form>
+            <button 
+              type="button"
+              onClick={() => setStep('login')}
+              className="w-full py-3 mt-2 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-600 dark:text-gray-400 rounded-xl font-medium flex items-center justify-center transition-all active:scale-[0.98] text-sm"
+            >
+              Ingresar sin contraseña en su lugar
+            </button>
+          </form>
+        )}
 
         <div className="mt-6 flex items-center justify-between">
           <span className="w-1/5 border-b dark:border-gray-700"></span>
