@@ -7,6 +7,7 @@ import useLoginFlow from '../../hooks/useLoginFlow';
 import AuthPanel from './ui/AuthPanel';
 import AuthErrorMessage from './ui/AuthErrorMessage';
 import AuthDivider from './ui/AuthDivider';
+import AuthTextField from './ui/AuthTextField';
 
 export default function Login({ onNavigate, onLoginSuccess }) {
   const {
@@ -112,20 +113,16 @@ export default function Login({ onNavigate, onLoginSuccess }) {
 
         {step === 'login' && (
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignIn('EMAIL_OTP'); }}>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 ml-1">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input 
-                  type="email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="you@email.com"
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-gray-700/50 rounded-xl focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-500/30 outline-none transition-all text-gray-900 dark:text-white"
-                />
-              </div>
-            </div>
+            <AuthTextField
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="you@email.com"
+              icon={Mail}
+              inputClassName="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-gray-700/50 rounded-xl focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-500/30 outline-none transition-all text-gray-900 dark:text-white"
+            />
 
             <div className="flex items-center gap-2 mt-4 ml-1 mb-2">
               <input 
@@ -161,38 +158,28 @@ export default function Login({ onNavigate, onLoginSuccess }) {
 
         {step === 'login-password' && (
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignIn('PASSWORD'); }}>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 ml-1">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input 
-                  type="email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="you@email.com"
-                  className="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
-                />
-              </div>
-            </div>
+            <AuthTextField
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="you@email.com"
+              icon={Mail}
+              inputClassName="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
+            />
 
-            <div className="space-y-1">
-              <div className="flex justify-between items-center ml-1">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Contraseña</label>
-                <a href="#" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">¿La olvidaste?</a>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input 
-                  type="password" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
-                />
-              </div>
-            </div>
+            <AuthTextField
+              label="Contraseña"
+              labelRight={<a href="#" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">¿La olvidaste?</a>}
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder="••••••••"
+              icon={Lock}
+              inputClassName="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
+            />
 
             <div className="flex items-center gap-2 mt-4 ml-1 mb-2">
               <input 
