@@ -8,6 +8,7 @@ import AuthPanel from './ui/AuthPanel';
 import AuthErrorMessage from './ui/AuthErrorMessage';
 import AuthDivider from './ui/AuthDivider';
 import AuthTextField from './ui/AuthTextField';
+import { LOGIN_UI } from './constants/authText';
 
 export default function Login({ onNavigate, onLoginSuccess }) {
   const {
@@ -38,15 +39,15 @@ export default function Login({ onNavigate, onLoginSuccess }) {
           </div>
           
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            {step === 'setup-totp' ? 'Configura tu MFA' : (step === 'confirm-email-otp' ? 'Revisa tu correo' : 'Autenticación en 2 Pasos')}
+            {step === 'setup-totp' ? LOGIN_UI.setupTotpTitle : (step === 'confirm-email-otp' ? LOGIN_UI.confirmEmailOtpTitle : LOGIN_UI.confirmTotpTitle)}
           </h2>
           
           <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">
             {step === 'setup-totp' 
-              ? 'Escanea este QR con Google Authenticator o Authy, y digita el código de 6 números que se genera.'
+              ? LOGIN_UI.setupTotpDescription
               : (step === 'confirm-email-otp' 
-                  ? `Te acabamos de enviar un código temporal a ${email}. Cópialo aquí para ingresar.`
-                  : 'Ingresa el código de 6 dígitos que aparece en tu aplicación de autenticación dinámica.')}
+                  ? LOGIN_UI.confirmEmailOtpDescription(email)
+                  : LOGIN_UI.confirmTotpDescription)}
           </p>
 
           {step === 'setup-totp' && qrUri && (
@@ -72,14 +73,14 @@ export default function Login({ onNavigate, onLoginSuccess }) {
               disabled={loading || mfaCode.slice(0, step === 'confirm-email-otp' ? 8 : 6).some(c => c === '')}
               className="w-full py-3 mt-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-70 text-white rounded-xl font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             >
-              {loading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Verificar e Ingresar'}
+              {loading ? <Loader2 className="animate-spin h-5 w-5" /> : LOGIN_UI.verifyAndEnter}
             </button>
             <button 
               type="button"
               onClick={() => setStep('login')}
               className="w-full py-2 text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors"
             >
-              Cancelar
+              {LOGIN_UI.cancel}
             </button>
             {step === 'confirm-email-otp' && (
               <button 
@@ -87,7 +88,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
                 onClick={() => setStep('login-password')}
                 className="w-full py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline transition-colors"
               >
-                Iniciar sesión con contraseña en su lugar
+                {LOGIN_UI.switchToPassword}
               </button>
             )}
           </form>
@@ -102,10 +103,10 @@ export default function Login({ onNavigate, onLoginSuccess }) {
         
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-blue-400 dark:to-indigo-300">
-            Welcome Back
+            {LOGIN_UI.title}
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            Enter your credentials to access your account
+            {LOGIN_UI.subtitle}
           </p>
         </div>
 
@@ -114,12 +115,12 @@ export default function Login({ onNavigate, onLoginSuccess }) {
         {step === 'login' && (
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignIn('EMAIL_OTP'); }}>
             <AuthTextField
-              label="Email"
+              label={LOGIN_UI.emailLabel}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="you@email.com"
+              placeholder={LOGIN_UI.emailPlaceholder}
               icon={Mail}
               inputClassName="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-gray-700/50 rounded-xl focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-500/30 outline-none transition-all text-gray-900 dark:text-white"
             />
@@ -133,7 +134,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
                 onChange={(e) => setRememberDeviceChecked(e.target.checked)}
               />
               <label htmlFor="remember_otp" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
-                Recordar este equipo (No pedirá códigos a futuro)
+                {LOGIN_UI.rememberOtp}
               </label>
             </div>
 
@@ -142,7 +143,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
               disabled={loading || !email}
               className="w-full py-3 mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-70 text-white rounded-xl font-medium flex items-center justify-center gap-2 group transition-all active:scale-[0.98]"
             >
-              {loading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Continuar'}
+              {loading ? <Loader2 className="animate-spin h-5 w-5" /> : LOGIN_UI.continue}
               {!loading && <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />}
             </button>
             
@@ -151,7 +152,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
               onClick={() => setStep('login-password')}
               className="w-full py-3 mt-2 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-600 dark:text-gray-400 rounded-xl font-medium flex items-center justify-center transition-all active:scale-[0.98] text-sm"
             >
-              Iniciar sesión con contraseña en su lugar
+              {LOGIN_UI.switchToPassword}
             </button>
           </form>
         )}
@@ -159,24 +160,24 @@ export default function Login({ onNavigate, onLoginSuccess }) {
         {step === 'login-password' && (
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignIn('PASSWORD'); }}>
             <AuthTextField
-              label="Email"
+              label={LOGIN_UI.emailLabel}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="you@email.com"
+              placeholder={LOGIN_UI.emailPlaceholder}
               icon={Mail}
               inputClassName="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
             />
 
             <AuthTextField
-              label="Contraseña"
-              labelRight={<a href="#" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">¿La olvidaste?</a>}
+              label={LOGIN_UI.passwordLabel}
+              labelRight={<a href="#" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">{LOGIN_UI.forgotPassword}</a>}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              placeholder="••••••••"
+              placeholder={LOGIN_UI.passwordPlaceholder}
               icon={Lock}
               inputClassName="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
             />
@@ -190,7 +191,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
                 onChange={(e) => setRememberDeviceChecked(e.target.checked)}
               />
               <label htmlFor="remember_pwd" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
-                Recordar este equipo (No pedirá MFA a futuro)
+                {LOGIN_UI.rememberPassword}
               </label>
             </div>
 
@@ -199,7 +200,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
               disabled={loading}
               className="w-full py-3 mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-70 text-white rounded-xl font-medium flex items-center justify-center gap-2 group transition-all active:scale-[0.98]"
             >
-              {loading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Ingresar'}
+              {loading ? <Loader2 className="animate-spin h-5 w-5" /> : LOGIN_UI.enter}
               {!loading && <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />}
             </button>
 
@@ -208,12 +209,12 @@ export default function Login({ onNavigate, onLoginSuccess }) {
               onClick={() => setStep('login')}
               className="w-full py-3 mt-2 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-600 dark:text-gray-400 rounded-xl font-medium flex items-center justify-center transition-all active:scale-[0.98] text-sm"
             >
-              Ingresar sin contraseña en su lugar
+              {LOGIN_UI.switchToPasswordless}
             </button>
           </form>
         )}
 
-        <AuthDivider text="or continue with" />
+        <AuthDivider text={LOGIN_UI.divider} />
 
         <div className="mt-6">
           <button 
@@ -229,14 +230,14 @@ export default function Login({ onNavigate, onLoginSuccess }) {
                 <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.989 -14.754 43.989 Z"/>
               </g>
             </svg>
-            Sign in with Google
+            {LOGIN_UI.googleSignIn}
           </button>
         </div>
 
         <p className="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">
-          Don't have an account?{' '}
+          {LOGIN_UI.noAccount}{' '}
           <button onClick={onNavigate} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
-            Sign up
+            {LOGIN_UI.signUp}
           </button>
         </p>
       </AuthPanel>

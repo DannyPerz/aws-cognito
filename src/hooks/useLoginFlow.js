@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { signIn, confirmSignIn, rememberDevice } from 'aws-amplify/auth';
+import { LOGIN_FLOW_TEXT } from '../components/Auth/constants/authText';
 
 export default function useLoginFlow({ onLoginSuccess }) {
   const [step, setStep] = useState('login'); // 'login' | 'setup-totp' | 'confirm-totp'
@@ -34,7 +35,7 @@ export default function useLoginFlow({ onLoginSuccess }) {
   const handleNextStep = async (nextStep, method = activeMethod) => {
     if (nextStep.signInStep === 'CONTINUE_SIGN_IN_WITH_TOTP_SETUP') {
       const totpSetupDetails = nextStep.totpSetupDetails;
-      const appName = 'MyReactApp';
+      const appName = LOGIN_FLOW_TEXT.appName;
       const setupUri = totpSetupDetails.getSetupUri(appName).toString();
       setQrUri(setupUri);
       setStep('setup-totp');
@@ -48,7 +49,7 @@ export default function useLoginFlow({ onLoginSuccess }) {
 
     if (nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_OTP_CODE' || nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_EMAIL_CODE') {
       if (method === 'PASSWORD') {
-        setError('Login con contraseña no debería pedir código por correo. Revisa en Cognito que no tengas MFA por email activo para este usuario.');
+        setError(LOGIN_FLOW_TEXT.emailCodeUnexpectedForPassword);
         return;
       }
       setStep('confirm-email-otp');
@@ -62,7 +63,7 @@ export default function useLoginFlow({ onLoginSuccess }) {
         if (method === 'PASSWORD') {
           const passChallenge = available.includes('PASSWORD_SRP') ? 'PASSWORD_SRP' : (available.includes('PASSWORD') ? 'PASSWORD' : null);
           if (!passChallenge) {
-            setError('Tu pool no ofrece factor de contraseña en este flujo.');
+            setError(LOGIN_FLOW_TEXT.missingPasswordFactor);
             return;
           }
           const { nextStep: advancedStep } = await confirmSignIn({ challengeResponse: passChallenge });
@@ -72,7 +73,7 @@ export default function useLoginFlow({ onLoginSuccess }) {
 
         if (method === 'EMAIL_OTP') {
           if (!available.includes('EMAIL_OTP')) {
-            setError('El inicio por correo está deshabilitado para esta cuenta. Usa contraseña.');
+            setError(LOGIN_FLOW_TEXT.emailOtpDisabled);
             setStep('login-password');
             return;
           }
@@ -81,7 +82,7 @@ export default function useLoginFlow({ onLoginSuccess }) {
           return;
         }
       } catch (err) {
-        setError(`Error seleccionando factor: ${err.message}`);
+        setError(LOGIN_FLOW_TEXT.factorSelectionError(err.message));
       }
       return;
     }
@@ -91,22 +92,22 @@ export default function useLoginFlow({ onLoginSuccess }) {
         const { nextStep: advancedStep } = await confirmSignIn({ challengeResponse: 'TOTP' });
         await handleNextStep(advancedStep, method);
       } catch (err) {
-        setError(`Error seleccionando MFA: ${err.message}`);
+        setError(LOGIN_FLOW_TEXT.mfaSelectionError(err.message));
       }
       return;
     }
 
-    setError(`Reto no validado en UI: ${nextStep.signInStep}`);
+    setError(LOGIN_FLOW_TEXT.unsupportedChallenge(nextStep.signInStep));
   };
 
   const handleSignIn = async (method) => {
     if (!email) {
-      setError('Por favor, ingresa tu correo electrónico primero.');
+      setError(LOGIN_FLOW_TEXT.emailRequired);
       return;
     }
 
     if (method === 'PASSWORD' && !password) {
-      setError('Por favor, ingresa tu contraseña.');
+      setError(LOGIN_FLOW_TEXT.passwordRequired);
       return;
     }
 
@@ -148,7 +149,7 @@ export default function useLoginFlow({ onLoginSuccess }) {
 
       await handleNextStep(nextStep, method);
     } catch (err) {
-      setError(err.message || 'Error al iniciar sesión');
+      setError(err.message || LOGIN_FLOW_TEXT.signInError);
     } finally {
       setLoading(false);
     }
@@ -174,10 +175,10 @@ export default function useLoginFlow({ onLoginSuccess }) {
         }
         onLoginSuccess();
       } else {
-        setError(`Aún falta un paso: ${nextStep.signInStep}`);
+        setError(LOGIN_FLOW_TEXT.remainingStep(nextStep.signInStep));
       }
     } catch (err) {
-      const errMsg = err?.message || 'Código MFA inválido';
+      const errMsg = err?.message || LOGIN_FLOW_TEXT.invalidMfaCode;
 
       if (
         step === 'confirm-email-otp' &&
@@ -194,11 +195,11 @@ export default function useLoginFlow({ onLoginSuccess }) {
           if (isSignedIn) {
             onLoginSuccess();
           } else {
-            setError(`Aún falta un paso: ${nextStep.signInStep}`);
+            setError(LOGIN_FLOW_TEXT.remainingStep(nextStep.signInStep));
           }
           return;
         } catch (retryErr) {
-          setError((retryErr && retryErr.message) || 'No se pudo verificar el código de correo tras limpiar el dispositivo local.');
+          setError((retryErr && retryErr.message) || LOGIN_FLOW_TEXT.emailOtpRetryError);
           return;
         }
       }

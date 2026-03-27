@@ -5,6 +5,7 @@ import CodeInputGroup from './CodeInputGroup';
 import AuthPanel from './ui/AuthPanel';
 import AuthErrorMessage from './ui/AuthErrorMessage';
 import AuthTextField from './ui/AuthTextField';
+import { REGISTER_UI, REGISTER_ERRORS } from './constants/authText';
 
 export default function Register({ onNavigate }) {
   const [step, setStep] = useState('register'); // register or confirm
@@ -37,7 +38,7 @@ export default function Register({ onNavigate }) {
       });
       setStep('confirm');
     } catch (err) {
-      setError(err.message || 'Error al registrar usuario');
+      setError(err.message || REGISTER_ERRORS.signUpError);
     } finally {
       setLoading(false);
     }
@@ -67,7 +68,7 @@ export default function Register({ onNavigate }) {
       }
       
     } catch (err) {
-      setError(err.message || 'Código inválido');
+      setError(err.message || REGISTER_ERRORS.invalidCode);
     } finally {
       setLoading(false);
     }
@@ -81,10 +82,10 @@ export default function Register({ onNavigate }) {
             <ShieldCheck className="w-8 h-8" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            Verifica tu correo
+            {REGISTER_UI.verifyEmailTitle}
           </h2>
           <p className="text-gray-500 dark:text-gray-400 mb-4 text-sm">
-            Hemos enviado un código a <strong>{email}</strong>. Ingrésalo a continuación para confirmar tu cuenta.
+            {REGISTER_UI.verifyEmailPrefix} <strong>{email}</strong>. {REGISTER_UI.verifyEmailSuffix}
           </p>
 
           <AuthErrorMessage message={error} className="text-left" />
@@ -102,12 +103,12 @@ export default function Register({ onNavigate }) {
               disabled={loading || code.some(c => c === '')}
               className="w-full py-3 mt-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-70 text-white rounded-xl font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             >
-              {loading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Confirmar Cuenta'}
+              {loading ? <Loader2 className="animate-spin h-5 w-5" /> : REGISTER_UI.confirmAccount}
             </button>
           </form>
 
           <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-            Volver a <button onClick={onNavigate} className="text-blue-600 hover:underline">Iniciar sesión</button>
+            {REGISTER_UI.backToLogin}{' '}<button onClick={onNavigate} className="text-blue-600 hover:underline">{REGISTER_UI.login}</button>
           </p>
         </AuthPanel>
       </div>
@@ -120,10 +121,10 @@ export default function Register({ onNavigate }) {
         
         <div className="text-center mb-6">
           <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-blue-400 dark:to-indigo-300">
-            Create an Account
+            {REGISTER_UI.title}
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            Join us and start your journey
+            {REGISTER_UI.subtitle}
           </p>
         </div>
 
@@ -131,34 +132,34 @@ export default function Register({ onNavigate }) {
 
         <form className="space-y-4" onSubmit={handleSignUp}>
           <AuthTextField
-            label="Full Name"
+            label={REGISTER_UI.fullNameLabel}
             type="text"
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="John Doe"
+            placeholder={REGISTER_UI.fullNamePlaceholder}
             icon={User}
             inputClassName="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
           />
 
           <AuthTextField
-            label="Email"
+            label={REGISTER_UI.emailLabel}
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
+            placeholder={REGISTER_UI.emailPlaceholder}
             icon={Mail}
             inputClassName="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
           />
 
           <AuthTextField
-            label="Password"
+            label={REGISTER_UI.passwordLabel}
             type="password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
+            placeholder={REGISTER_UI.passwordPlaceholder}
             icon={Lock}
             inputClassName="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
           />
@@ -167,15 +168,15 @@ export default function Register({ onNavigate }) {
             disabled={loading}
             className="w-full py-3 mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-70 text-white rounded-xl font-medium flex items-center justify-center gap-2 group transition-all active:scale-[0.98]"
           >
-            {loading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Sign Up'}
+            {loading ? <Loader2 className="animate-spin h-5 w-5" /> : REGISTER_UI.signUp}
             {!loading && <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />}
           </button>
         </form>
 
         <p className="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">
-          Already have an account?{' '}
+          {REGISTER_UI.haveAccount}{' '}
           <button onClick={onNavigate} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
-            Sign in
+            {REGISTER_UI.signIn}
           </button>
         </p>
       </AuthPanel>
