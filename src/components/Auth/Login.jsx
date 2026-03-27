@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 
 export default function Login({ onNavigate, onLoginSuccess }) {
   const [step, setStep] = useState('login'); // 'login' | 'setup-totp' | 'confirm-totp'
+  const [activeMethod, setActiveMethod] = useState(null); // 'PASSWORD' | 'EMAIL_OTP'
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,6 +15,23 @@ export default function Login({ onNavigate, onLoginSuccess }) {
   const [rememberDeviceChecked, setRememberDeviceChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [didRetryEmailOtpWithoutDeviceKey, setDidRetryEmailOtpWithoutDeviceKey] = useState(false);
+
+  const clearStaleDeviceMetadata = () => {
+    const keyMatchers = [/CognitoIdentityServiceProvider\./, /deviceKey|deviceGroupKey|randomPasswordKey/i];
+    const keysToRemove = [];
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+
+      if (keyMatchers[0].test(key) && keyMatchers[1].test(key)) {
+        keysToRemove.push(key);
+      }
+    }
+
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+  };
 
   const handleSignIn = async (method) => {
     // method: 'PASSWORD' | 'EMAIL_OTP'
@@ -28,29 +46,34 @@ export default function Login({ onNavigate, onLoginSuccess }) {
 
     setLoading(true);
     setError('');
+    setActiveMethod(method);
+    setDidRetryEmailOtpWithoutDeviceKey(false);
     try {
-      let signInParams = {
-        username: email,
-        options: {
-          authFlowType: 'USER_AUTH',
-          preferredChallenge: method === 'EMAIL_OTP' ? 'EMAIL_OTP' : 'PASSWORD'
-        }
-      };
-
-      if (method === 'PASSWORD') {
-        // En Cognito, PASSWORD en USER_AUTH prefiere automáticamente SRP si está disponible.
-        signInParams.password = password;
-      }
+      const signInParams = method === 'PASSWORD'
+        ? {
+            username: email,
+            password,
+            options: {
+              authFlowType: 'USER_SRP_AUTH'
+            }
+          }
+        : {
+            username: email,
+            options: {
+              authFlowType: 'USER_AUTH',
+              preferredChallenge: 'EMAIL_OTP'
+            }
+          };
 
       const { isSignedIn, nextStep } = await signIn(signInParams);
       
       if (isSignedIn) {
-        if (rememberDeviceChecked) {
+        if (rememberDeviceChecked && method === 'PASSWORD') {
           try { await rememberDevice(); } catch (err) { console.warn('No se pudo recordar disp:', err); }
         }
         onLoginSuccess();
       } else {
-        handleNextStep(nextStep);
+        await handleNextStep(nextStep, method);
       }
     } catch (err) {
       setError(err.message || 'Error al iniciar sesión');
@@ -59,7 +82,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
     }
   };
 
-  const handleNextStep = (nextStep) => {
+  const handleNextStep = async (nextStep, method = activeMethod) => {
     if (nextStep.signInStep === 'CONTINUE_SIGN_IN_WITH_TOTP_SETUP') {
       const totpSetupDetails = nextStep.totpSetupDetails;
       const appName = 'MyReactApp';
@@ -69,27 +92,46 @@ export default function Login({ onNavigate, onLoginSuccess }) {
     } else if (nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_TOTP_CODE') {
       setStep('confirm-totp');
     } else if (nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_OTP_CODE' || nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_EMAIL_CODE') {
+      if (method === 'PASSWORD') {
+        setError('Login con contraseña no debería pedir código por correo. Revisa en Cognito que no tengas MFA por email activo para este usuario.');
+        return;
+      }
       setStep('confirm-email-otp');
     } else if (nextStep.signInStep === 'CONTINUE_SIGN_IN_WITH_FIRST_FACTOR_SELECTION') {
-      // Si el backend no reconoció el preferredChallenge y nos frena aquí, forzamos el avance:
       const available = nextStep.availableFactors || [];
-      if (available.includes('EMAIL_OTP') && !password) {
-        confirmSignIn({ challengeResponse: 'EMAIL_OTP' })
-          .then(({ nextStep: advancedStep }) => handleNextStep(advancedStep))
-          .catch((err) => setError(`Error seleccionando factor: ${err.message}`));
-      } else if (!password) {
-        setError('Por la alta seguridad de tu cuenta (MFA Activo), el inicio por correo está bloqueado. Por favor, usa tu contraseña.');
-        setStep('login-password');
-      } else {
-        const passChallenge = available.includes('PASSWORD_SRP') ? 'PASSWORD_SRP' : 'PASSWORD';
-        confirmSignIn({ challengeResponse: passChallenge })
-          .then(({ nextStep: advancedStep }) => handleNextStep(advancedStep))
-          .catch((err) => setError(`Error seleccionando factor: ${err.message}`));
+
+      try {
+        if (method === 'PASSWORD') {
+          const passChallenge = available.includes('PASSWORD_SRP') ? 'PASSWORD_SRP' : (available.includes('PASSWORD') ? 'PASSWORD' : null);
+          if (!passChallenge) {
+            setError('Tu pool no ofrece factor de contraseña en este flujo.');
+            return;
+          }
+          const { nextStep: advancedStep } = await confirmSignIn({ challengeResponse: passChallenge });
+          await handleNextStep(advancedStep, method);
+          return;
+        }
+
+        if (method === 'EMAIL_OTP') {
+          if (!available.includes('EMAIL_OTP')) {
+            setError('El inicio por correo está deshabilitado para esta cuenta. Usa contraseña.');
+            setStep('login-password');
+            return;
+          }
+          const { nextStep: advancedStep } = await confirmSignIn({ challengeResponse: 'EMAIL_OTP' });
+          await handleNextStep(advancedStep, method);
+          return;
+        }
+      } catch (err) {
+        setError(`Error seleccionando factor: ${err.message}`);
       }
     } else if (nextStep.signInStep === 'CONTINUE_SIGN_IN_WITH_MFA_SELECTION') {
-      confirmSignIn({ challengeResponse: 'TOTP' })
-        .then(({ nextStep: advancedStep }) => handleNextStep(advancedStep))
-        .catch((err) => setError(`Error seleccionando MFA: ${err.message}`));
+      try {
+        const { nextStep: advancedStep } = await confirmSignIn({ challengeResponse: 'TOTP' });
+        await handleNextStep(advancedStep, method);
+      } catch (err) {
+        setError(`Error seleccionando MFA: ${err.message}`);
+      }
     } else {
       setError(`Reto no validado en UI: ${nextStep.signInStep}`);
     }
@@ -106,7 +148,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
       const { isSignedIn, nextStep } = await confirmSignIn({ challengeResponse });
       
       if (isSignedIn) {
-        if (rememberDeviceChecked) {
+        if (rememberDeviceChecked && activeMethod === 'PASSWORD') {
           try { await rememberDevice(); } catch (err) { console.warn('No se pudo recordar disp:', err); }
         }
         onLoginSuccess();
@@ -114,7 +156,33 @@ export default function Login({ onNavigate, onLoginSuccess }) {
         setError(`Aún falta un paso: ${nextStep.signInStep}`);
       }
     } catch (err) {
-      setError(err.message || 'Código MFA inválido');
+      const errMsg = err?.message || 'Código MFA inválido';
+
+      if (
+        step === 'confirm-email-otp' &&
+        /Device does not exist/i.test(errMsg) &&
+        !didRetryEmailOtpWithoutDeviceKey
+      ) {
+        try {
+          clearStaleDeviceMetadata();
+          setDidRetryEmailOtpWithoutDeviceKey(true);
+
+          const challengeResponse = mfaCode.slice(0, codeLen).join('');
+          const { isSignedIn, nextStep } = await confirmSignIn({ challengeResponse });
+
+          if (isSignedIn) {
+            onLoginSuccess();
+          } else {
+            setError(`Aún falta un paso: ${nextStep.signInStep}`);
+          }
+          return;
+        } catch (retryErr) {
+          setError((retryErr && retryErr.message) || 'No se pudo verificar el código de correo tras limpiar el dispositivo local.');
+          return;
+        }
+      }
+
+      setError(errMsg);
     } finally {
       setLoading(false);
     }
