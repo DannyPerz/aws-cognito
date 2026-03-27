@@ -4,6 +4,9 @@ import { signInWithRedirect } from 'aws-amplify/auth';
 import { QRCodeSVG } from 'qrcode.react';
 import CodeInputGroup from './CodeInputGroup';
 import useLoginFlow from '../../hooks/useLoginFlow';
+import AuthPanel from './ui/AuthPanel';
+import AuthErrorMessage from './ui/AuthErrorMessage';
+import AuthDivider from './ui/AuthDivider';
 
 export default function Login({ onNavigate, onLoginSuccess }) {
   const {
@@ -28,7 +31,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
   if (step === 'setup-totp' || step === 'confirm-totp' || step === 'confirm-email-otp') {
     return (
       <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
-        <div className="bg-white dark:bg-gray-900/80 backdrop-blur-xl border border-gray-100 dark:border-gray-800 rounded-3xl p-8 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] text-center">
+        <AuthPanel className="text-center">
           <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-6">
             {step === 'setup-totp' ? <QrCode className="w-8 h-8" /> : (step === 'confirm-email-otp' ? <Mail className="w-8 h-8" /> : <ShieldCheck className="w-8 h-8" />)}
           </div>
@@ -51,11 +54,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
             </div>
           )}
 
-          {error && (
-            <div className="mb-4 p-3 bg-red-100/50 border border-red-200 text-red-600 rounded-xl text-sm">
-              {error}
-            </div>
-          )}
+          <AuthErrorMessage message={error} className="text-left" />
           
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleConfirmMFA(); }}>
             <CodeInputGroup
@@ -91,14 +90,14 @@ export default function Login({ onNavigate, onLoginSuccess }) {
               </button>
             )}
           </form>
-        </div>
+        </AuthPanel>
       </div>
     );
   }
 
   return (
     <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-white dark:bg-gray-900/80 backdrop-blur-xl border border-gray-100 dark:border-gray-800 rounded-3xl p-8 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]">
+      <AuthPanel>
         
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-blue-400 dark:to-indigo-300">
@@ -109,11 +108,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
           </p>
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-100/50 border border-red-200 text-red-600 rounded-xl text-sm text-center">
-            {error}
-          </div>
-        )}
+        <AuthErrorMessage message={error} />
 
         {step === 'login' && (
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignIn('EMAIL_OTP'); }}>
@@ -231,11 +226,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
           </form>
         )}
 
-        <div className="mt-6 flex items-center justify-between">
-          <span className="w-1/5 border-b dark:border-gray-700"></span>
-          <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">or continue with</span>
-          <span className="w-1/5 border-b dark:border-gray-700"></span>
-        </div>
+        <AuthDivider text="or continue with" />
 
         <div className="mt-6">
           <button 
@@ -261,7 +252,7 @@ export default function Login({ onNavigate, onLoginSuccess }) {
             Sign up
           </button>
         </p>
-      </div>
+      </AuthPanel>
     </div>
   );
 }
