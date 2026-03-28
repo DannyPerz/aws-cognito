@@ -32,7 +32,7 @@ export const LOGIN_FLOW_TEXT = {
   passwordRequired: 'Por favor, ingresa tu contraseña.',
   emailCodeUnexpectedForPassword: 'Login con contraseña no debería pedir código por correo. Revisa en Cognito que no tengas MFA por email activo para este usuario.',
   missingPasswordFactor: 'Tu pool no ofrece factor de contraseña en este flujo.',
-  emailOtpDisabled: 'El inicio por correo está deshabilitado para esta cuenta. Usa contraseña.',
+  emailOtpDisabled: 'Esta cuenta debe iniciar sesion con contrasena (y verificacion MFA si corresponde).',
   factorSelectionError: (message) => `Error seleccionando factor: ${message}`,
   mfaSelectionError: (message) => `Error seleccionando MFA: ${message}`,
   unsupportedChallenge: (step) => `Reto no validado en UI: ${step}`,
