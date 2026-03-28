@@ -7,6 +7,7 @@ import AuthErrorMessage from './ui/AuthErrorMessage';
 import AuthTextField from './ui/AuthTextField';
 import { REGISTER_UI, REGISTER_ERRORS } from './constants/authText';
 import { REGISTER_STEPS } from './constants/authState';
+import { mapAuthError } from './utils/authErrorMapper';
 
 export default function Register({ onNavigate }) {
   const [step, setStep] = useState(REGISTER_STEPS.REGISTER);
@@ -39,7 +40,7 @@ export default function Register({ onNavigate }) {
       });
       setStep(REGISTER_STEPS.CONFIRM);
     } catch (err) {
-      setError(err.message || REGISTER_ERRORS.signUpError);
+      setError(mapAuthError(err, REGISTER_ERRORS.signUpError));
     } finally {
       setLoading(false);
     }
@@ -69,7 +70,7 @@ export default function Register({ onNavigate }) {
       }
       
     } catch (err) {
-      setError(err.message || REGISTER_ERRORS.invalidCode);
+      setError(mapAuthError(err, REGISTER_ERRORS.invalidCode));
     } finally {
       setLoading(false);
     }

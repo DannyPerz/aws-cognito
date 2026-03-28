@@ -21,7 +21,7 @@ export const PROFILE_UI = {
   lastAccess: 'Último acceso:',
   closeSessionInDeviceTitle: 'Cerrar sesión en este dispositivo',
   unlinkDevice: 'Desvincular',
-  noTrustedDevices: 'Cognito no tiene registrado ningún equipo confiable.',
+  noTrustedDevices: 'No tienes registrado ningún equipo confiable.',
   dangerZoneTitle: 'Zona de Peligro',
   dangerZoneDescription: 'Administra la seguridad global de tu cuenta.',
   dangerZoneBody: 'Si dejaste tu cuenta abierta en un dispositivo público (como un cibercafé) y no recuerdas haber cerrado sesión, puedes revocar inmediatamente los accesos de TODOS los dispositivos del mundo haciendo click aquí. Esto también cerrará tu sesión actual.',

@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { signIn, confirmSignIn, rememberDevice } from 'aws-amplify/auth';
+import { useEffect, useState } from 'react';
+import { signIn, confirmSignIn, rememberDevice, signInWithRedirect } from 'aws-amplify/auth';
 import { LOGIN_FLOW_TEXT } from '../components/Auth/constants/authText';
+import { mapAuthError, mapOAuthError } from '../components/Auth/utils/authErrorMapper';
 import {
   AUTH_METHODS,
   COGNITO_FACTORS,
@@ -20,7 +21,23 @@ export default function useLoginFlow({ onLoginSuccess }) {
   const [rememberDeviceChecked, setRememberDeviceChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [oauthError, setOauthError] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [didRetryEmailOtpWithoutDeviceKey, setDidRetryEmailOtpWithoutDeviceKey] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthErrorCode = params.get('error');
+    const errorDescription = params.get('error_description');
+
+    if (oauthErrorCode || errorDescription) {
+      const msg = mapOAuthError({ code: oauthErrorCode, description: errorDescription });
+      setOauthError(msg);
+
+      const cleanUrl = `${window.location.origin}${window.location.pathname}${window.location.hash}`;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  }, []);
 
   const clearStaleDeviceMetadata = () => {
     const keyMatchers = [/CognitoIdentityServiceProvider\./, /deviceKey|deviceGroupKey|randomPasswordKey/i];
@@ -90,7 +107,7 @@ export default function useLoginFlow({ onLoginSuccess }) {
           return;
         }
       } catch (err) {
-        setError(LOGIN_FLOW_TEXT.factorSelectionError(err.message));
+        setError(LOGIN_FLOW_TEXT.factorSelectionError(mapAuthError(err, LOGIN_FLOW_TEXT.signInError)));
       }
       return;
     }
@@ -100,7 +117,7 @@ export default function useLoginFlow({ onLoginSuccess }) {
         const { nextStep: advancedStep } = await confirmSignIn({ challengeResponse: COGNITO_FACTORS.TOTP });
         await handleNextStep(advancedStep, method);
       } catch (err) {
-        setError(LOGIN_FLOW_TEXT.mfaSelectionError(err.message));
+        setError(LOGIN_FLOW_TEXT.mfaSelectionError(mapAuthError(err, LOGIN_FLOW_TEXT.signInError)));
       }
       return;
     }
@@ -109,6 +126,8 @@ export default function useLoginFlow({ onLoginSuccess }) {
   };
 
   const handleSignIn = async (method) => {
+    setOauthError('');
+
     if (!email) {
       setError(LOGIN_FLOW_TEXT.emailRequired);
       return;
@@ -157,7 +176,7 @@ export default function useLoginFlow({ onLoginSuccess }) {
 
       await handleNextStep(nextStep, method);
     } catch (err) {
-      setError(err.message || LOGIN_FLOW_TEXT.signInError);
+      setError(mapAuthError(err, LOGIN_FLOW_TEXT.signInError));
     } finally {
       setLoading(false);
     }
@@ -186,7 +205,7 @@ export default function useLoginFlow({ onLoginSuccess }) {
         setError(LOGIN_FLOW_TEXT.remainingStep(nextStep.signInStep));
       }
     } catch (err) {
-      const errMsg = err?.message || LOGIN_FLOW_TEXT.invalidMfaCode;
+      const errMsg = mapAuthError(err, LOGIN_FLOW_TEXT.invalidMfaCode);
 
       if (
         step === LOGIN_STEPS.CONFIRM_EMAIL_OTP &&
@@ -207,7 +226,7 @@ export default function useLoginFlow({ onLoginSuccess }) {
           }
           return;
         } catch (retryErr) {
-          setError((retryErr && retryErr.message) || LOGIN_FLOW_TEXT.emailOtpRetryError);
+          setError(mapAuthError(retryErr, LOGIN_FLOW_TEXT.emailOtpRetryError));
           return;
         }
       }
@@ -216,6 +235,21 @@ export default function useLoginFlow({ onLoginSuccess }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setOauthError('');
+    setGoogleLoading(true);
+    try {
+      await signInWithRedirect({ provider: 'Google' });
+    } catch (err) {
+      setGoogleLoading(false);
+      setOauthError(mapAuthError(err, 'No se pudo iniciar sesion con Google.'));
+    }
+  };
+
+  const clearOauthError = () => {
+    setOauthError('');
   };
 
   return {
@@ -231,8 +265,12 @@ export default function useLoginFlow({ onLoginSuccess }) {
     rememberDeviceChecked,
     setRememberDeviceChecked,
     loading,
+    googleLoading,
     error,
+    oauthError,
     handleSignIn,
-    handleConfirmMFA
+    handleConfirmMFA,
+    handleGoogleSignIn,
+    clearOauthError
   };
 }
