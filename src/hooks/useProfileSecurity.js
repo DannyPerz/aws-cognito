@@ -8,11 +8,8 @@ import {
   updateMFAPreference,
   verifyTOTPSetup
 } from 'aws-amplify/auth';
-
-const PROFILE_SETUP_STEPS = {
-  IDLE: 'idle',
-  QR: 'qr'
-};
+import { PROFILE_SETUP_STEPS } from '../components/Profile/constants/profileState';
+import { PROFILE_MESSAGES, PROFILE_UI } from '../components/Profile/constants/profileText';
 
 export default function useProfileSecurity() {
   const [mfaEnabled, setMfaEnabled] = useState(false);
@@ -60,7 +57,7 @@ export default function useProfileSecurity() {
       setQrUri(totpSetup.getSetupUri(appName).toString());
       setSetupStep(PROFILE_SETUP_STEPS.QR);
     } catch (err) {
-      setError('Error iniciando configuración MFA: ' + err.message);
+      setError(PROFILE_MESSAGES.setupMfaError(err.message));
     } finally {
       setActionLoading(false);
     }
@@ -75,9 +72,9 @@ export default function useProfileSecurity() {
       await updateMFAPreference({ totp: 'PREFERRED' });
       setMfaEnabled(true);
       setSetupStep(PROFILE_SETUP_STEPS.IDLE);
-      setSuccess('¡MFA habilitado correctamente! Tu cuenta ahora tiene doble protección. 🛡️');
+      setSuccess(PROFILE_MESSAGES.mfaEnabledSuccess);
     } catch (err) {
-      setError('Código inválido: ' + err.message);
+      setError(PROFILE_MESSAGES.invalidCode(err.message));
     } finally {
       setActionLoading(false);
     }
@@ -90,9 +87,9 @@ export default function useProfileSecurity() {
     try {
       await updateMFAPreference({ totp: 'DISABLED' });
       setMfaEnabled(false);
-      setSuccess('MFA deshabilitado correctamente.');
+      setSuccess(PROFILE_MESSAGES.mfaDisabledSuccess);
     } catch (err) {
-      setError('Error deshabilitando MFA: ' + err.message);
+      setError(PROFILE_MESSAGES.disableMfaError(err.message));
     } finally {
       setActionLoading(false);
     }
@@ -105,23 +102,23 @@ export default function useProfileSecurity() {
     try {
       if (device) {
         await forgetDevice({ device });
-        setSuccess('Dispositivo desvinculado exitosamente.');
+        setSuccess(PROFILE_MESSAGES.forgetDeviceSuccess);
       } else {
         await forgetDevice();
-        setSuccess('El dispositivo actual ha sido olvidado.');
+        setSuccess(PROFILE_MESSAGES.forgetCurrentDeviceSuccess);
       }
 
       const userDevices = await fetchDevices();
       setDevices(userDevices);
     } catch (err) {
-      setError('Error olvidando dispositivo: ' + err.message);
+      setError(PROFILE_MESSAGES.forgetDeviceError(err.message));
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleGlobalSignOut = async () => {
-    if (!window.confirm('¿Estás seguro que deseas cerrar sesión en TODOS tus dispositivos? Esto te sacará inmediatamente de esta computadora también.')) {
+    if (!window.confirm(PROFILE_UI.globalSignOutConfirm)) {
       return;
     }
 
@@ -136,7 +133,7 @@ export default function useProfileSecurity() {
       localStorage.clear();
       await signOut({ global: true });
     } catch (err) {
-      setError('Error al revocar todas las sesiones: ' + err.message);
+      setError(PROFILE_MESSAGES.globalSignOutError(err.message));
       setActionLoading(false);
     }
   };

@@ -3,6 +3,7 @@ import { ShieldCheck, ShieldOff, QrCode, Loader2, ArrowLeft, CheckCircle2, Monit
 import { QRCodeSVG } from 'qrcode.react';
 import CodeInputGroup from '../Auth/CodeInputGroup';
 import useProfileSecurity from '../../hooks/useProfileSecurity';
+import { PROFILE_UI } from './constants/profileText';
 
 export default function Profile({ onBack, isGoogleUser = false }) {
   const {
@@ -47,9 +48,9 @@ export default function Profile({ onBack, isGoogleUser = false }) {
         </button>
         <div>
           <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-blue-400 dark:to-indigo-300">
-            Seguridad de la Cuenta
+            {PROFILE_UI.title}
           </h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">Administra MFA y sesiones activas</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">{PROFILE_UI.subtitle}</p>
         </div>
       </div>
 
@@ -76,27 +77,27 @@ export default function Profile({ onBack, isGoogleUser = false }) {
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Autenticación TOTP
+                {PROFILE_UI.mfaTitle}
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {isGoogleUser
-                  ? 'Tu cuenta está protegida por Google. Gestiona tu seguridad desde tu cuenta de Google.'
+                  ? PROFILE_UI.mfaDescriptionGoogle
                   : mfaEnabled 
-                  ? 'MFA activado — Tu cuenta está protegida con verificación en 2 pasos'
-                  : 'MFA opcional — Activa la verificación en 2 pasos para mayor seguridad'}
+                  ? PROFILE_UI.mfaDescriptionEnabled
+                  : PROFILE_UI.mfaDescriptionDisabled}
               </p>
             </div>
           </div>
 
           <span className={`px-3 py-1 text-xs font-semibold rounded-full ${isGoogleUser ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : mfaEnabled ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
-            {isGoogleUser ? 'Google' : mfaEnabled ? 'Activo' : 'Inactivo'}
+            {isGoogleUser ? PROFILE_UI.mfaStatusGoogle : mfaEnabled ? PROFILE_UI.mfaStatusEnabled : PROFILE_UI.mfaStatusDisabled}
           </span>
         </div>
 
         {isGoogleUser && (
           <div className="border-t border-gray-200 dark:border-gray-800 pt-6 mt-4">
             <div className="p-4 bg-blue-50/80 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl text-sm text-blue-700 dark:text-blue-300">
-              Tu cuenta está protegida por Google. Gestiona tu seguridad en tu cuenta de Google.
+              {PROFILE_UI.mfaGoogleNotice}
             </div>
           </div>
         )}
@@ -108,9 +109,9 @@ export default function Profile({ onBack, isGoogleUser = false }) {
               <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
                 <QrCode className="w-7 h-7" />
               </div>
-              <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Escanea el código QR</h4>
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{PROFILE_UI.qrTitle}</h4>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                Abre Google Authenticator o Authy y escanea este código. Luego ingresa los 6 dígitos que te genera la app.
+                {PROFILE_UI.qrDescription}
               </p>
 
               {qrUri && (
@@ -133,14 +134,14 @@ export default function Profile({ onBack, isGoogleUser = false }) {
                     onClick={() => { setSetupStep(PROFILE_SETUP_STEPS.IDLE); setError(''); }}
                     className="px-6 py-3 text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white border border-gray-200 dark:border-gray-700 rounded-xl transition-colors"
                   >
-                    Cancelar
+                    {PROFILE_UI.cancel}
                   </button>
                   <button
                     type="submit"
                     disabled={actionLoading || verifyCode.some(c => c === '')}
                     className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-70 text-white rounded-xl font-medium flex items-center gap-2 transition-all active:scale-[0.98]"
                   >
-                    {actionLoading ? <Loader2 className="animate-spin h-4 w-4" /> : 'Verificar y Activar'}
+                    {actionLoading ? <Loader2 className="animate-spin h-4 w-4" /> : PROFILE_UI.verifyAndEnable}
                   </button>
                 </div>
               </form>
@@ -160,7 +161,7 @@ export default function Profile({ onBack, isGoogleUser = false }) {
                 {actionLoading ? <Loader2 className="animate-spin h-5 w-5" /> : (
                   <>
                     <ShieldOff className="w-5 h-5" />
-                    Deshabilitar MFA
+                    {PROFILE_UI.disableMfa}
                   </>
                 )}
               </button>
@@ -173,7 +174,7 @@ export default function Profile({ onBack, isGoogleUser = false }) {
                 {actionLoading ? <Loader2 className="animate-spin h-5 w-5" /> : (
                   <>
                     <ShieldCheck className="w-5 h-5" />
-                    Habilitar MFA
+                    {PROFILE_UI.enableMfa}
                   </>
                 )}
               </button>
@@ -190,10 +191,10 @@ export default function Profile({ onBack, isGoogleUser = false }) {
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Dispositivos Vinculados
+              {PROFILE_UI.devicesTitle}
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Gestiones las sesiones activas asociadas a tu cuenta.
+              {PROFILE_UI.devicesDescription}
             </p>
           </div>
         </div>
@@ -208,26 +209,26 @@ export default function Profile({ onBack, isGoogleUser = false }) {
               <div key={device.id || idx} className="flex flex-wrap sm:flex-nowrap justify-between items-center p-4 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-2xl gap-4">
                 <div>
                   <h4 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                    Dispositivo {device.attributes?.device_name || `(ID: ${device.id.substring(0, 8)}...)`}
+                    {PROFILE_UI.deviceLabel} {device.attributes?.device_name || `(ID: ${device.id.substring(0, 8)}...)`}
                   </h4>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Último acceso: {device.lastAuthenticatedDate ? new Date(device.lastAuthenticatedDate).toLocaleString() : 'N/A'}
+                    {PROFILE_UI.lastAccess} {device.lastAuthenticatedDate ? new Date(device.lastAuthenticatedDate).toLocaleString() : 'N/A'}
                   </p>
                 </div>
                 <button
                   onClick={() => handleForgetDevice(device)}
                   disabled={actionLoading}
                   className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg flex items-center gap-2 transition-colors border border-red-200 dark:border-red-900/50"
-                  title="Cerrar sesión en este dispositivo"
+                  title={PROFILE_UI.closeSessionInDeviceTitle}
                 >
-                  <Trash2 className="w-4 h-4" /> Desvincular
+                  <Trash2 className="w-4 h-4" /> {PROFILE_UI.unlinkDevice}
                 </button>
               </div>
             ))
           ) : (
             <div className="text-center py-6">
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Cognito no tiene registrado ningún equipo confiable.
+                {PROFILE_UI.noTrustedDevices}
               </p>
             </div>
           )}
@@ -243,15 +244,15 @@ export default function Profile({ onBack, isGoogleUser = false }) {
            </div>
            <div>
              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-               Zona de Peligro
+               {PROFILE_UI.dangerZoneTitle}
              </h3>
              <p className="text-sm text-gray-500 dark:text-gray-400">
-               Administra la seguridad global de tu cuenta.
+               {PROFILE_UI.dangerZoneDescription}
              </p>
            </div>
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-6 border-t border-red-200/50 dark:border-red-900/30 pt-4">
-          Si dejaste tu cuenta abierta en un dispositivo público (como un cibercafé) y no recuerdas haber cerrado sesión, puedes revocar inmediatamente los accesos de **TODOS** los dispositivos del mundo haciendo click aquí. Esto también cerrará tu sesión actual.
+          {PROFILE_UI.dangerZoneBody}
         </p>
         <button
           onClick={handleGlobalSignOut}
@@ -261,7 +262,7 @@ export default function Profile({ onBack, isGoogleUser = false }) {
           {actionLoading ? <Loader2 className="animate-spin h-5 w-5" /> : (
             <>
               <AlertTriangle className="w-5 h-5" />
-              Cerrar sesión en TODOS los dispositivos
+              {PROFILE_UI.closeAllSessions}
             </>
           )}
         </button>
